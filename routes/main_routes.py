@@ -40,56 +40,74 @@ def analyze_text():
 def analyze_voice():
     data = request.get_json(silent=True) or {}
 
-    text = data.get("text", "").strip()  # Whisper in browser gives this
+    # Text already transcribed in browser using Whisper Tiny
+    text = data.get("text", "").strip()
     audio_b64 = data.get("audio", "")
     language = data.get("language", "english")
 
-    if not text:
-        return jsonify({"error": "No text received from Whisper"}), 400
+    if not audio_b64:
+        return jsonify({"error": "No audio provided"}), 400
 
-    tempo = 0
-    pitch = 0
+    temp_webm = None
+    temp_wav = None
 
-    # If audio exists, extract tempo + pitch
-    if audio_b64:
-        try:
-            audio_bytes = base64.b64decode(audio_b64)
+    try:
+        # ------------------------
+        # Save received audio
+        # ------------------------
+        audio_bytes = base64.b64decode(audio_b64)
 
-            temp_webm = tempfile.NamedTemporaryFile(delete=False, suffix=".webm")
-            temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        temp_webm = tempfile.NamedTemporaryFile(delete=False, suffix=".webm")
+        temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
 
-            with open(temp_webm.name, "wb") as f:
-                f.write(audio_bytes)
+        temp_webm.close()
+        temp_wav.close()
 
-            # convert webm → wav
-            subprocess.run([
-                "ffmpeg", "-y",
-                "-i", temp_webm.name,
-                "-ac", "1",
-                "-ar", "16000",
-                temp_wav.name
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with open(temp_webm.name, "wb") as f:
+            f.write(audio_bytes)
 
-            tempo, pitch = extract_audio_features(temp_wav.name)
+        # ------------------------
+        # Convert to WAV using ffmpeg
+        # ------------------------
+        proc = subprocess.run([
+            "ffmpeg", "-y",
+            "-i", temp_webm.name,
+            "-ac", "1",
+            "-ar", "16000",
+            temp_wav.name
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
-        except Exception as e:
-            print("Audio processing error:", e)
+        if proc.returncode != 0:
+            err = proc.stderr.decode(errors="ignore")
+            return jsonify({"error": "FFmpeg conversion failed", "details": err}), 500
 
-        finally:
+        # ------------------------
+        # Extract tempo + pitch
+        # ------------------------
+        tempo, pitch = extract_audio_features(temp_wav.name)
+
+        # ------------------------
+        # Detect mood
+        # ------------------------
+        mood = analyze_mood_with_audio(text, tempo, pitch)
+        songs = get_recommendations(mood, language)
+
+        return jsonify({
+            "text": text,
+            "mood": mood,
+            "tempo": tempo,
+            "pitch": pitch,
+            "songs": songs
+        })
+
+    except Exception as e:
+        return jsonify({"error": "Server error", "details": str(e)}), 500
+
+    finally:
+        # Cleanup
+        for tf in (temp_webm, temp_wav):
             try:
-                os.remove(temp_webm.name)
-                os.remove(temp_wav.name)
+                if tf and os.path.exists(tf.name):
+                    os.remove(tf.name)
             except:
                 pass
-
-    # Final mood detection
-    mood = analyze_mood_with_audio(text, tempo, pitch)
-    songs = get_recommendations(mood, language)
-
-    return jsonify({
-        "text": text,
-        "mood": mood,
-        "tempo": tempo,
-        "pitch": pitch,
-        "songs": songs
-    })

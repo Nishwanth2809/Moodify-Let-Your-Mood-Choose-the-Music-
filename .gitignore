@@ -1,45 +1,58 @@
-# Byte-compiled / optimized / DLL files
+# ----------------------------------------
+# Python bytecode / cache
+# ----------------------------------------
 __pycache__/
 *.py[cod]
 *.so
 
-# Virtual environments
+# ----------------------------------------
+# Virtual Environments
+# ----------------------------------------
 .venv/
 venv/
 ENV/
 env/
 
-# Python build / distribution
+# ----------------------------------------
+# Python build/dist
+# ----------------------------------------
 build/
 dist/
 *.egg-info/
 
+# ----------------------------------------
 # Environment variables
+# ----------------------------------------
 .env
 .env.*
+spotify_tokens.json
 
+# ----------------------------------------
 # Audio / temporary files
+# ----------------------------------------
 *.wav
 *.webm
-temp_audio.*
 *.mp3
-
-# Uploads / cache
+temp_audio.*
 uploads/
-cache/
 
-# IDE / editor
+# ----------------------------------------
+# Cache
+# ----------------------------------------
+cache/
+*.log
+
+# ----------------------------------------
+# IDE / editor / OS files
+# ----------------------------------------
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
-
-# System files
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-
+# ----------------------------------------
 # Render / deployment temporary folders
+# ----------------------------------------
 .mesonpy*/

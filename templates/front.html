@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moodify - Let Your Mood Choose Music</title>
+    <title>Moodify - Let Your Mood Choose the Music</title>
 
-    <!-- Browser Whisper Tiny -->
+    <!-- Whisper Model (Browser) -->
     <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/transformers.min.js"></script>
 
     <!-- jQuery -->
@@ -19,15 +20,20 @@
             font-family: Arial;
             padding: 20px;
         }
-        h1 { margin-bottom: 20px; }
 
-        input, select {
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        input,
+        select {
             padding: 10px;
             width: 60%;
             border-radius: 6px;
             border: none;
             margin-top: 10px;
         }
+
         button {
             padding: 12px 16px;
             border: none;
@@ -36,10 +42,25 @@
             cursor: pointer;
             font-size: 16px;
         }
-        #recordButton { background: #ff4757; color: white; }
-        #recordButton.recording { background: #2ed573; }
-        #analyzeTextButton { background: #3498db; color: white; }
-        #clearButton { background: #888; color: white; }
+
+        #recordButton {
+            background: #ff4757;
+            color: white;
+        }
+
+        #recordButton.recording {
+            background: #2ed573;
+        }
+
+        #analyzeTextButton {
+            background: #3498db;
+            color: white;
+        }
+
+        #clearButton {
+            background: #888;
+            color: white;
+        }
 
         #songList .song {
             background: #2c2c54;
@@ -50,6 +71,7 @@
             align-items: center;
             gap: 10px;
         }
+
         .song img {
             width: 50px;
             height: 50px;
@@ -60,193 +82,216 @@
 
 <body>
 
-<h1>Moodify — Let Your Mood Choose Music 🎵</h1>
+    <h1>Moodify — Let Your Mood Choose Music 🎵</h1>
 
-<input type="text" id="textInput" placeholder="Type your mood...">
+    <input type="text" id="textInput" placeholder="Type your mood...">
 
-<br>
-<select id="languageSelect">
-    <option value="english">English</option>
-    <option value="hindi">Hindi</option>
-    <option value="telugu">Telugu</option>
-</select>
+    <br>
+    <select id="languageSelect">
+        <option value="english">English</option>
+        <option value="hindi">Hindi</option>
+        <option value="telugu">Telugu</option>
+    </select>
 
-<br>
-<button id="analyzeTextButton">Analyze Mood</button>
-<button id="clearButton">Clear</button>
+    <br>
+    <button id="analyzeTextButton">Analyze Mood</button>
+    <button id="clearButton">Clear</button>
 
-<br><br>
-<button id="recordButton">🎙 Start Recording</button>
-<p id="status"></p>
+    <br><br>
+    <button id="recordButton" disabled>🎙 Start Recording</button>
+    <p id="status">Loading voice model... ⏳</p>
 
-<h2 id="moodResult"></h2>
-<div id="songList"></div>
+    <h2 id="moodResult"></h2>
+    <div id="songList"></div>
 
-<script>
-let mediaRecorder;
-let chunks = [];
-let isRecording = false;
-let whisperModel = null;
+    <script>
+        let mediaRecorder;
+        let chunks = [];
+        let isRecording = false;
+        let whisperModel = null;
+        let modelLoaded = false;
 
-// ---------------------------
-// Load Whisper Tiny (browser)
-// ---------------------------
-async function loadWhisper() {
-    document.getElementById("status").innerText = "Loading voice model... ⏳";
+        // -------------------------------------
+        // Load Whisper Tiny Model (Fastest)
+        // -------------------------------------
+        async function loadWhisper() {
+            document.getElementById("status").innerText = "Loading voice model... ⏳";
 
-    const processor = await transformers.autoProcessor.from_pretrained("Xenova/whisper-tiny.en");
-    const model = await transformers.autoModelForSpeechSeq2Seq.from_pretrained("Xenova/whisper-tiny.en");
+            try {
+                whisperModel = await transformers.pipeline(
+                    "automatic-speech-recognition",
+                    "Xenova/whisper-tiny"
+                );
 
-    whisperModel = { processor, model };
+                modelLoaded = true;
+                document.getElementById("status").innerText = "Voice model ready 🎤";
+                document.getElementById("recordButton").disabled = false;
 
-    document.getElementById("status").innerText = "Model ready 🎤";
-}
-loadWhisper();
+            } catch (error) {
+                console.error("Model load error:", error);
+                document.getElementById("status").innerHTML =
+                    `Failed to load model ❌ 
+                    <button onclick='loadWhisper()'>Retry</button>`;
+            }
+        }
 
+        // Timeout fallback if loading is slow
+        setTimeout(() => {
+            if (!modelLoaded) {
+                document.getElementById("status").innerHTML =
+                    `Still loading... ⚠️ 
+                    <button onclick='loadWhisper()'>Retry</button>`;
+            }
+        }, 15000);
 
-// ---------------------------
-// Start Recording
-// ---------------------------
-document.getElementById("recordButton").onclick = () => {
-    if (!isRecording) startRecording();
-    else stopRecording();
-};
-
-async function startRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-
-    chunks = [];
-    mediaRecorder.start();
-    isRecording = true;
-
-    document.getElementById("recordButton").classList.add("recording");
-    document.getElementById("recordButton").innerText = "⏹ Stop Recording";
-    document.getElementById("status").innerText = "Recording... 🎙";
-
-    mediaRecorder.ondataavailable = e => chunks.push(e.data);
-    mediaRecorder.onstop = () => processAudio();
-}
+        loadWhisper();
 
 
-// ---------------------------
-// Stop Recording
-// ---------------------------
-function stopRecording() {
-    mediaRecorder.stop();
-    isRecording = false;
+        // -------------------------------------
+        // Recording Controls
+        // -------------------------------------
+        document.getElementById("recordButton").onclick = function () {
+            if (!modelLoaded) {
+                alert("Voice model still loading. Please wait.");
+                return;
+            }
+            if (!isRecording) startRecording();
+            else stopRecording();
+        };
 
-    document.getElementById("recordButton").classList.remove("recording");
-    document.getElementById("recordButton").innerText = "🎙 Start Recording";
-    document.getElementById("status").innerText = "Processing audio...";
-}
+        async function startRecording() {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
 
+            chunks = [];
+            mediaRecorder.start();
+            isRecording = true;
 
-// ---------------------------
-// Convert, Transcribe & Send
-// ---------------------------
-async function processAudio() {
-    const blob = new Blob(chunks, { type: "audio/webm" });
+            document.getElementById("recordButton").classList.add("recording");
+            document.getElementById("recordButton").innerText = "⏹ Stop Recording";
+            document.getElementById("status").innerText = "Recording... 🎙";
 
-    // Convert audio to base64 for backend
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-        let base64Audio = reader.result.split(",")[1];
+            mediaRecorder.ondataavailable = e => chunks.push(e.data);
+            mediaRecorder.onstop = () => processAudio();
+        }
 
-        // Convert to ArrayBuffer for Whisper
-        const audioBuffer = await blob.arrayBuffer();
+        function stopRecording() {
+            mediaRecorder.stop();
+            isRecording = false;
 
-        // Prepare audio tensor
-        const { processor, model } = whisperModel;
-        const audioTensor = await processor(audioBuffer);
-        const output = await model.generate(audioTensor.input_features);
-
-        const text = output[0].generated_text.trim();
-
-        document.getElementById("status").innerText = "Sending to server...";
-
-        $.ajax({
-            url: "/voice",
-            method: "POST",
-            contentType: "application/json",
-            data: JSON.stringify({
-                audio: base64Audio,
-                text: text,
-                language: document.getElementById("languageSelect").value
-            }),
-            success: showResults,
-            error: () => alert("Error processing voice!")
-        });
-    };
-
-    reader.readAsDataURL(blob);
-}
+            document.getElementById("recordButton").classList.remove("recording");
+            document.getElementById("recordButton").innerText = "🎙 Start Recording";
+            document.getElementById("status").innerText = "Processing audio...";
+        }
 
 
-// ---------------------------
-// Text Input Mood Detection
-// ---------------------------
-document.getElementById("analyzeTextButton").onclick = () => {
-    let text = document.getElementById("textInput").value.trim();
-    let language = document.getElementById("languageSelect").value;
+        // -------------------------------------
+        // Process Audio
+        // -------------------------------------
+        async function processAudio() {
+            const blob = new Blob(chunks, { type: "audio/webm" });
+            const arrayBuffer = await blob.arrayBuffer();
 
-    if (!text) return alert("Enter text first.");
+            try {
+                const textResult = await whisperModel(arrayBuffer);
+                const text = textResult.text || "";
 
-    $.ajax({
-        url: "/text",
-        method: "POST",
-        contentType: "application/json",
-        data: JSON.stringify({ text, language }),
-        success: showResults
-    });
-};
+                document.getElementById("status").innerText = "Sending to server...";
 
+                // Send for mood detection + tempo + pitch
+                $.ajax({
+                    url: "/voice",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({
+                        audio: await blobToBase64(blob),
+                        text: text,
+                        language: document.getElementById("languageSelect").value
+                    }),
+                    success: showResults,
+                    error: () => alert("Error processing voice input.")
+                });
 
-// ---------------------------
-// Display Results
-// ---------------------------
-function showResults(response) {
-    if (response.error) {
-        document.getElementById("moodResult").innerText = "Error: " + response.error;
-        return;
-    }
+            } catch (err) {
+                console.error(err);
+                alert("Whisper transcription failed.");
+            }
+        }
 
-    document.getElementById("moodResult").innerHTML =
-        `Detected Mood: <b>${response.mood.toUpperCase()}</b>`;
-
-    let list = document.getElementById("songList");
-    list.innerHTML = "";
-
-    if (!response.songs?.length) {
-        list.innerHTML = "<p>No songs found.</p>";
-        return;
-    }
-
-    response.songs.forEach(song => {
-        list.innerHTML += `
-            <div class="song">
-                <img src="${song.cover}">
-                <div>
-                    <b>${song.name}</b><br>
-                    ${song.artist}<br>
-                    <a href="${song.spotify_url}" target="_blank">Open in Spotify</a>
-                </div>
-            </div>
-        `;
-    });
-}
+        function blobToBase64(blob) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(",")[1]);
+                reader.readAsDataURL(blob);
+            });
+        }
 
 
-// ---------------------------
-// Clear Button
-// ---------------------------
-document.getElementById("clearButton").onclick = () => {
-    document.getElementById("textInput").value = "";
-    document.getElementById("moodResult").innerHTML = "";
-    document.getElementById("songList").innerHTML = "";
-    document.getElementById("status").innerHTML = "";
-};
-</script>
+        // -------------------------------------
+        // Text Input Mood
+        // -------------------------------------
+        document.getElementById("analyzeTextButton").onclick = function () {
+            let text = document.getElementById("textInput").value.trim();
+            let language = document.getElementById("languageSelect").value;
+
+            if (!text) return alert("Enter text first.");
+
+            $.ajax({
+                url: "/text",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ text, language }),
+                success: showResults
+            });
+        };
+
+
+        // -------------------------------------
+        // Display Results
+        // -------------------------------------
+        function showResults(response) {
+            if (response.error) {
+                document.getElementById("moodResult").innerText = "Error: " + response.error;
+                return;
+            }
+
+            document.getElementById("moodResult").innerHTML =
+                `Detected Mood: <b>${response.mood.toUpperCase()}</b>`;
+
+            let list = document.getElementById("songList");
+            list.innerHTML = "";
+
+            if (!response.songs?.length) {
+                list.innerHTML = "<p>No songs found.</p>";
+                return;
+            }
+
+            response.songs.forEach(song => {
+                list.innerHTML += `
+                    <div class="song">
+                        <img src="${song.cover}">
+                        <div>
+                            <b>${song.name}</b><br>
+                            ${song.artist}<br>
+                            <a href="${song.spotify_url}" target="_blank">Open in Spotify</a>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+
+        // -------------------------------------
+        // Clear Button
+        // -------------------------------------
+        document.getElementById("clearButton").onclick = function () {
+            document.getElementById("textInput").value = "";
+            document.getElementById("moodResult").innerHTML = "";
+            document.getElementById("songList").innerHTML = "";
+            document.getElementById("status").innerHTML = "";
+        };
+    </script>
 
 </body>
+
 </html>
