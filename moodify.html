@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Moodify — Mood-Based Music</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #1db954;
+    --green-dim: #1db95418;
+    --green-border: #1db95440;
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --surface3: #1e1e28;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f0f5;
+    --muted: #8b8b9e;
+    --faint: #3a3a4a;
+    --font-display: 'Sora', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-pill: 100px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2rem;
+    height: 60px;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .nav-logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--green);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nav-logo-icon svg { width: 18px; height: 18px; fill: #fff; }
+  .nav-logo-name { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text); }
+  .nav-links { display: flex; gap: 1.5rem; }
+  .nav-links a { font-size: 13px; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+  .nav-links a:hover { color: var(--text); }
+
+  /* ── Main layout ── */
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  /* ── Hero ── */
+  .hero { text-align: center; margin-bottom: 3rem; }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--green);
+    background: var(--green-dim);
+    border: 1px solid var(--green-border);
+    border-radius: var(--radius-pill);
+    padding: 4px 12px;
+    margin-bottom: 1.25rem;
+  }
+  .hero-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    margin-bottom: 1rem;
+  }
+  .hero h1 em { font-style: normal; color: var(--green); }
+  .hero p { font-size: 16px; color: var(--muted); max-width: 460px; margin: 0 auto; }
+
+  /* ── Section label ── */
+  .label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.6rem;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  /* ── Input section ── */
+  textarea#moodInput {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  textarea#moodInput::placeholder { color: var(--faint); }
+  .input-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .char-count { font-size: 12px; color: var(--faint); }
+
+  /* ── Controls ── */
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
+  select {
+    flex: 1; min-width: 140px;
+    height: 38px; padding: 0 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    cursor: pointer;
+    outline: none;
+  }
+  select:focus { border-color: var(--green); }
+
+  .btn {
+    height: 38px; padding: 0 16px;
+    display: inline-flex; align-items: center; gap: 7px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 14px; font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    transition: background 0.14s, border-color 0.14s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface3); border-color: var(--border2); }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary { background: var(--green); border-color: transparent; color: #fff; }
+  .btn.primary:hover { background: #17a349; }
+  .btn.primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .btn.record-btn { background: #ff6b8a14; border-color: #ff6b8a30; color: #ff6b8a; }
+  .btn.record-btn.recording { background: #ff6b8a; border-color: transparent; color: #fff; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── Transcript ── */
+  .transcript-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--faint);
+    min-height: 38px;
+    display: flex; align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  /* ── Analysis ── */
+  .analysis-section { display: none; }
+  .analysis-section.visible { display: block; }
+
+  .detected-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+  .mood-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--green-dim);
+    border: 1px solid var(--green-border);
+    border-radius: var(--radius-pill);
+    padding: 6px 16px;
+    font-family: var(--font-display);
+    font-size: 16px; font-weight: 600;
+    color: var(--green);
+  }
+  .mood-pill svg { width: 18px; height: 18px; fill: none; stroke: var(--green); stroke-width: 2; }
+  .conf-badge {
+    font-size: 13px; color: var(--muted);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    padding: 4px 12px;
+  }
+  .conf-badge b { color: var(--text); }
+
+  .mood-bars { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; }
+  .bar-row { display: flex; align-items: center; gap: 10px; }
+  .bar-label { font-size: 13px; color: var(--muted); width: 62px; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; width: 0; transition: width 0.9s cubic-bezier(0.22,1,0.36,1); }
+  .bar-pct { font-size: 12px; color: var(--faint); width: 34px; text-align: right; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+  .stat-tile {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.9rem 1rem;
+  }
+  .stat-tile .stat-label { font-size: 11px; color: var(--faint); margin-bottom: 6px; }
+  .stat-tile .stat-val { font-size: 20px; font-weight: 600; font-family: var(--font-display); color: var(--text); }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--border); margin: 2rem 0; }
+
+  /* ── Songs ── */
+  .songs-section { display: none; }
+  .songs-section.visible { display: block; }
+
+  .song-list { display: flex; flex-direction: column; }
+  .song-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .song-item:hover { background: var(--surface2); }
+  .song-item.playing { background: var(--surface2); }
+  .song-num { font-size: 12px; color: var(--faint); width: 20px; text-align: center; flex-shrink: 0; }
+  .song-art {
+    width: 42px; height: 42px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .song-info { flex: 1; min-width: 0; }
+  .song-title { font-size: 14px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song-artist { font-size: 12px; color: var(--muted); }
+  .song-tag {
+    font-size: 11px; padding: 2px 9px;
+    border-radius: var(--radius-pill);
+    flex-shrink: 0;
+    border: 1px solid transparent;
+  }
+  .song-play-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--surface3);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+  }
+  .song-play-btn:hover, .song-item.playing .song-play-btn { background: var(--green); color: #fff; }
+  .song-play-btn svg { width: 14px; height: 14px; fill: currentColor; }
+
+  /* ── Now playing bar ── */
+  .now-playing {
+    display: none;
+    align-items: center; gap: 12px;
+    margin-top: 1rem;
+    padding: 10px 14px;
+    background: var(--green-dim);
+    border: 1px solid var(--green-border);
+    border-radius: var(--radius-sm);
+  }
+  .now-playing.visible { display: flex; }
+  .wave-bars { display: flex; align-items: flex-end; gap: 2px; height: 18px; }
+  .wave-bars span { display: block; width: 3px; border-radius: 2px; background: var(--green); animation: wv 0.8s ease-in-out infinite; }
+  .wave-bars span:nth-child(2) { animation-delay: 0.15s; }
+  .wave-bars span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes wv { 0%,100%{height:5px} 50%{height:16px} }
+  .np-text { font-size: 13px; color: var(--muted); }
+  .np-text b { color: var(--green); font-weight: 500; }
+
+  /* ── Spinner ── */
+  .spin {
+    display: none; width: 15px; height: 15px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: sp 0.65s linear infinite;
+  }
+  .spin.on { display: inline-block; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center; padding: 2rem;
+    font-size: 12px; color: var(--faint);
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 540px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .nav-links { display: none; }
+    .hero h1 { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="nav-logo" aria-label="Moodify home">
+    <div class="nav-logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 18c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-2c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/></svg>
+    </div>
+    <span class="nav-logo-name">Moodify</span>
+  </a>
+  <nav class="nav-links">
+    <a href="#">How it works</a>
+    <a href="#">History</a>
+    <a href="#">About</a>
+  </nav>
+</nav>
+
+<main>
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-eyebrow"><span class="dot"></span> AI mood detection</div>
+    <h1>Music that matches<br/><em>how you actually feel</em></h1>
+    <p>Tell us your mood in words or voice. We'll find the songs that fit the moment.</p>
+  </div>
+
+  <!-- Input -->
+  <p class="label">Mood input</p>
+  <div class="card">
+    <textarea id="moodInput" rows="4" maxlength="500" placeholder="Type how you feel or record a short voice note…">I feel excited and confident, but I need music that keeps me focused.</textarea>
+    <div class="input-footer">
+      <span style="font-size:12px;color:var(--faint);">Be as descriptive as you like</span>
+      <span class="char-count"><span id="charCount">69</span>/500</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <select id="langSel" aria-label="Language">
+      <option>Telugu</option>
+      <option>English</option>
+      <option>Hindi</option>
+      <option>Tamil</option>
+      <option>Kannada</option>
+      <option>Malayalam</option>
+    </select>
+    <div class="btn-row">
+      <button class="btn primary" id="analyzeBtn" onclick="analyzeM()">
+        <span class="spin" id="spinner"></span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg>
+        <span id="analyzeLabel">Analyze</span>
+      </button>
+      <button class="btn" onclick="clearM()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Clear
+      </button>
+      <button class="btn record-btn" id="recordBtn" onclick="toggleRecord()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg>
+        Record
+      </button>
+      <button class="btn" onclick="loadSample()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Sample
+      </button>
+    </div>
+  </div>
+
+  <div class="transcript-box" id="transcriptBox">Voice transcript will appear here.</div>
+
+  <!-- Analysis -->
+  <div class="analysis-section" id="analysisSection">
+    <p class="label">Detected mood</p>
+    <div class="card">
+      <div class="detected-row">
+        <div class="mood-pill" id="moodPill">
+          <svg id="moodIcon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+          <span id="moodPillText">Happy</span>
+        </div>
+        <div class="conf-badge">Confidence: <b id="confVal">73.5%</b></div>
+      </div>
+
+      <div class="mood-bars" id="moodBars"></div>
+
+      <div class="stats-grid">
+        <div class="stat-tile"><div class="stat-label">Sentiment</div><div class="stat-val" id="statSent">0.735</div></div>
+        <div class="stat-tile"><div class="stat-label">Vocal tempo</div><div class="stat-val" id="statTempo">0</div></div>
+        <div class="stat-tile"><div class="stat-label">Pitch</div><div class="stat-val" id="statPitch">0 Hz</div></div>
+        <div class="stat-tile"><div class="stat-label">Tracks</div><div class="stat-val" id="statTracks">3</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Songs -->
+  <div class="songs-section" id="songsSection">
+    <div class="divider"></div>
+    <p class="label">Recommended for you</p>
+    <div class="card">
+      <div class="song-list" id="songList"></div>
+      <div class="now-playing" id="nowPlaying">
+        <div class="wave-bars"><span></span><span></span><span></span></div>
+        <div class="np-text">Now playing — <b id="npTitle"></b></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>Moodify &mdash; Your mood, your music &mdash; 2025</footer>
+
+<script>
+const SAMPLES = [
+  "I feel excited and confident, but I need music that keeps me focused.",
+  "I'm feeling low today, nostalgic and a little lonely.",
+  "Super energetic, ready to hit the gym and crush it!",
+  "Calm and peaceful, just want to drift into a cozy Sunday afternoon.",
+  "I'm a bit anxious but trying to stay positive and push through."
+];
+
+const SONG_DB = {
+  Happy: [
+    { title: "Manase Manase", artist: "Shankar Mahadevan", emoji: "🎵", bg: "#1db95415", tag: "Uplifting", tagColor: "#1db954", tagBg: "#1db95415" },
+    { title: "O Saki Saki", artist: "Neha Kakkar", emoji: "🎸", bg: "#f43f5e15", tag: "Joyful", tagColor: "#f43f5e", tagBg: "#f43f5e15" },
+    { title: "Butta Bomma", artist: "Armaan Malik", emoji: "🎤", bg: "#f59e0b15", tag: "Vibrant", tagColor: "#f59e0b", tagBg: "#f59e0b15" },
+  ],
+  Focused: [
+    { title: "Raabta", artist: "Arijit Singh", emoji: "🎹", bg: "#8b5cf615", tag: "Flow state", tagColor: "#8b5cf6", tagBg: "#8b5cf615" },
+    { title: "Neetho Unte", artist: "Sid Sriram", emoji: "🎵", bg: "#0ea5e915", tag: "Deep work", tagColor: "#0ea5e9", tagBg: "#0ea5e915" },
+    { title: "Kesariya", artist: "Arijit Singh", emoji: "🎸", bg: "#f59e0b15", tag: "Calm focus", tagColor: "#f59e0b", tagBg: "#f59e0b15" },
+  ],
+  Sad: [
+    { title: "Tum Hi Ho", artist: "Arijit Singh", emoji: "🌧", bg: "#6366f115", tag: "Emotional", tagColor: "#818cf8", tagBg: "#6366f115" },
+    { title: "Channa Mereya", artist: "Arijit Singh", emoji: "🎵", bg: "#64748b15", tag: "Nostalgic", tagColor: "#94a3b8", tagBg: "#64748b15" },
+    { title: "Enna Sona", artist: "Arijit Singh", emoji: "🎹", bg: "#f43f5e15", tag: "Melancholic", tagColor: "#fb7185", tagBg: "#f43f5e15" },
+  ],
+  Energetic: [
+    { title: "Naatu Naatu", artist: "Rahul Sipligunj", emoji: "🥁", bg: "#f59e0b15", tag: "High energy", tagColor: "#fbbf24", tagBg: "#f59e0b15" },
+    { title: "G.O.A.T", artist: "Diljit Dosanjh", emoji: "🎤", bg: "#f43f5e15", tag: "Pump-up", tagColor: "#f43f5e", tagBg: "#f43f5e15" },
+    { title: "Badshah – Paani Paani", artist: "Badshah, Jacqueline", emoji: "🎸", bg: "#0ea5e915", tag: "Dance", tagColor: "#0ea5e9", tagBg: "#0ea5e915" },
+  ],
+  Neutral: [
+    { title: "Ae Dil Hai Mushkil", artist: "Arijit Singh", emoji: "🎵", bg: "#64748b15", tag: "Chill", tagColor: "#94a3b8", tagBg: "#64748b15" },
+    { title: "Pehli Nazar Mein", artist: "Atif Aslam", emoji: "🎸", bg: "#6366f115", tag: "Easy listen", tagColor: "#818cf8", tagBg: "#6366f115" },
+    { title: "Moh Moh Ke Dhaage", artist: "Monali Thakur", emoji: "🎹", bg: "#1db95415", tag: "Ambient", tagColor: "#1db954", tagBg: "#1db95415" },
+  ]
+};
+
+const MOOD_ICONS = {
+  Happy: '<circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+  Sad: '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>',
+  Energetic: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  Focused: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  Neutral: '<circle cx="12" cy="12" r="10"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>'
+};
+
+const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+
+function barColor(p) {
+  if(p > 70) return '#1db954';
+  if(p > 40) return '#f59e0b';
+  return '#475569';
+}
+
+function inferScores(text) {
+  text = text.toLowerCase();
+  let s = { Happy:0, Sad:0, Neutral:25, Love:0, Angry:0 };
+  if(/excit|happy|joy|great|awesome|love|confid|good|fun|wonderful/.test(text)) s.Happy += 80;
+  if(/sad|low|lonely|miss|empty|hurt|cry|depress|grief/.test(text)) s.Sad += 70;
+  if(/love|heart|miss|romantic|darling|crush/.test(text)) s.Love += 55;
+  if(/angry|rage|furious|mad|hate|frustrated/.test(text)) s.Angry += 50;
+  if(/calm|peace|relax|cozy|quiet|still/.test(text)) { s.Neutral += 25; }
+  if(/energy|gym|run|pump|dance|beat|fast/.test(text)) s.Happy += 15;
+  if(/focus|work|study|concentrat|produc/.test(text)) s.Neutral += 10;
+  Object.keys(s).forEach(k => s[k] = Math.min(100, Math.round(s[k])));
+  return s;
+}
+
+function getPrimary(text) {
+  text = text.toLowerCase();
+  if(/focus|work|study|concentrat|produc/.test(text) && /excit|confid|energe|great/.test(text)) return 'Focused';
+  if(/energy|gym|run|pump|dance/.test(text)) return 'Energetic';
+  if(/sad|low|lonely|cry|miss|depress/.test(text)) return 'Sad';
+  if(/excit|confid|happy|joy|awesome|great/.test(text)) return 'Happy';
+  return 'Neutral';
+}
+
+function analyzeM() {
+  const text = document.getElementById('moodInput').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  document.getElementById('spinner').classList.add('on');
+  document.getElementById('analyzeLabel').textContent = 'Analyzing…';
+
+  setTimeout(() => {
+    const scores = inferScores(text);
+    const primary = getPrimary(text);
+    const sentiment = +(Math.max(...Object.values(scores)) / 100 * 0.9 + 0.05).toFixed(3);
+
+    document.getElementById('moodPillText').textContent = primary;
+    document.getElementById('moodIcon').innerHTML = MOOD_ICONS[primary] || MOOD_ICONS.Neutral;
+    document.getElementById('confVal').textContent = (sentiment * 100).toFixed(1) + '%';
+    document.getElementById('statSent').textContent = sentiment.toFixed(3);
+    document.getElementById('statTempo').textContent = '0';
+    document.getElementById('statPitch').textContent = '0 Hz';
+    document.getElementById('statTracks').textContent = '3';
+
+    const barsEl = document.getElementById('moodBars');
+    barsEl.innerHTML = '';
+    Object.entries(scores).forEach(([k, v]) => {
+      barsEl.innerHTML += `<div class="bar-row">
+        <span class="bar-label">${k}</span>
+        <div class="bar-track"><div class="bar-fill" style="background:${barColor(v)}" data-pct="${v}"></div></div>
+        <span class="bar-pct">${v}%</span>
+      </div>`;
+    });
+    document.getElementById('analysisSection').classList.add('visible');
+    setTimeout(() => document.querySelectorAll('.bar-fill').forEach(el => el.style.width = el.dataset.pct + '%'), 60);
+
+    const songs = SONG_DB[primary] || SONG_DB.Neutral;
+    const list = document.getElementById('songList');
+    list.innerHTML = '';
+    songs.forEach((s, i) => {
+      const div = document.createElement('div');
+      div.className = 'song-item';
+      div.dataset.title = s.title;
+      div.innerHTML = `
+        <span class="song-num">${i+1}</span>
+        <div class="song-art" style="background:${s.bg}">${s.emoji}</div>
+        <div class="song-info">
+          <div class="song-title">${s.title}</div>
+          <div class="song-artist">${s.artist}</div>
+        </div>
+        <span class="song-tag" style="color:${s.tagColor};background:${s.tagBg};border-color:${s.tagColor}40">${s.tag}</span>
+        <button class="song-play-btn" aria-label="Play ${s.title}">${PLAY_SVG}</button>
+      `;
+      div.addEventListener('click', () => playSong(s.title, div));
+      list.appendChild(div);
+    });
+
+    document.getElementById('songsSection').classList.add('visible');
+    btn.disabled = false;
+    document.getElementById('spinner').classList.remove('on');
+    document.getElementById('analyzeLabel').textContent = 'Analyze';
+    document.getElementById('analysisSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 1300);
+}
+
+let currentPlaying = null;
+function playSong(title, el) {
+  if (currentPlaying && currentPlaying !== el) {
+    currentPlaying.classList.remove('playing');
+    currentPlaying.querySelector('.song-play-btn').innerHTML = PLAY_SVG;
+  }
+  el.classList.toggle('playing');
+  const isPlaying = el.classList.contains('playing');
+  el.querySelector('.song-play-btn').innerHTML = isPlaying ? PAUSE_SVG : PLAY_SVG;
+  currentPlaying = isPlaying ? el : null;
+  const npBar = document.getElementById('nowPlaying');
+  if (isPlaying) {
+    document.getElementById('npTitle').textContent = title;
+    npBar.classList.add('visible');
+  } else {
+    npBar.classList.remove('visible');
+  }
+}
+
+function clearM() {
+  document.getElementById('moodInput').value = '';
+  document.getElementById('charCount').textContent = '0';
+  document.getElementById('analysisSection').classList.remove('visible');
+  document.getElementById('songsSection').classList.remove('visible');
+  document.getElementById('transcriptBox').textContent = 'Voice transcript will appear here.';
+  document.getElementById('nowPlaying').classList.remove('visible');
+}
+
+function loadSample() {
+  const t = SAMPLES[Math.floor(Math.random() * SAMPLES.length)];
+  document.getElementById('moodInput').value = t;
+  document.getElementById('charCount').textContent = t.length;
+}
+
+let recording = false;
+function toggleRecord() {
+  recording = !recording;
+  const btn = document.getElementById('recordBtn');
+  if (recording) {
+    btn.classList.add('recording');
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Stop';
+    document.getElementById('transcriptBox').textContent = '🎙 Listening…';
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        window._recStream = stream;
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SR) {
+          const rec = new SR(); rec.lang = 'te-IN';
+          rec.onresult = e => {
+            const t = e.results[0][0].transcript;
+            document.getElementById('moodInput').value = t;
+            document.getElementById('charCount').textContent = t.length;
+            document.getElementById('transcriptBox').textContent = '\u201c' + t + '\u201d';
+          };
+          rec.onerror = () => { document.getElementById('transcriptBox').textContent = 'Could not capture audio. Please type instead.'; };
+          rec.start(); window._rec = rec;
+        } else {
+          setTimeout(() => {
+            const t = "I feel calm yet energized, ready to take on the day.";
+            document.getElementById('moodInput').value = t;
+            document.getElementById('charCount').textContent = t.length;
+            document.getElementById('transcriptBox').textContent = '\u201c' + t + '\u201d';
+          }, 1500);
+        }
+      }).catch(() => { document.getElementById('transcriptBox').textContent = 'Microphone access denied. Type your mood instead.'; });
+    }
+  } else {
+    btn.classList.remove('recording');
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg> Record';
+    if (window._rec) window._rec.stop();
+    if (window._recStream) window._recStream.getTracks().forEach(t => t.stop());
+  }
+}
+
+document.getElementById('moodInput').addEventListener('input', function() {
+  document.getElementById('charCount').textContent = this.value.length;
+});
+</script>
+</body>
+</html>

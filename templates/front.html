@@ -4,294 +4,1370 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moodify - Let Your Mood Choose the Music</title>
-
-    <!-- Whisper Model (Browser) -->
-    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers/dist/transformers.min.js"></script>
-
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>Moodify</title>
 
     <style>
+        :root {
+            --bg: #f6f4ef;
+            --ink: #1c1f24;
+            --muted: #667085;
+            --panel: #ffffff;
+            --line: #d9ded7;
+            --accent: #0f766e;
+            --accent-strong: #0b5f59;
+            --gold: #d69e2e;
+            --rose: #c2415d;
+            --blue: #2563eb;
+            --shadow: 0 18px 45px rgba(28, 31, 36, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            background-color: #1e1e2e;
-            color: white;
-            text-align: center;
-            font-family: Arial;
-            padding: 20px;
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
-        h1 {
-            margin-bottom: 20px;
-        }
-
-        input,
+        button,
+        textarea,
         select {
-            padding: 10px;
-            width: 60%;
-            border-radius: 6px;
-            border: none;
-            margin-top: 10px;
+            font: inherit;
         }
 
         button {
-            padding: 12px 16px;
-            border: none;
-            border-radius: 5px;
-            margin: 10px;
-            cursor: pointer;
-            font-size: 16px;
+            border: 0;
         }
 
-        #recordButton {
-            background: #ff4757;
-            color: white;
+        .shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr;
         }
 
-        #recordButton.recording {
-            background: #2ed573;
-        }
-
-        #analyzeTextButton {
-            background: #3498db;
-            color: white;
-        }
-
-        #clearButton {
-            background: #888;
-            color: white;
-        }
-
-        #songList .song {
-            background: #2c2c54;
-            padding: 10px;
-            margin: 10px;
-            border-radius: 8px;
+        .topbar {
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px clamp(18px, 4vw, 42px);
+            border-bottom: 1px solid var(--line);
+            background: rgba(246, 244, 239, 0.88);
+            backdrop-filter: blur(14px);
+            position: sticky;
+            top: 0;
+            z-index: 5;
         }
 
-        .song img {
-            width: 50px;
-            height: 50px;
-            border-radius: 6px;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .brand-mark {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            background:
+                linear-gradient(135deg, rgba(15, 118, 110, 0.95), rgba(214, 158, 46, 0.9)),
+                radial-gradient(circle at 70% 20%, #ffffff 0 12%, transparent 13%);
+            box-shadow: 0 10px 24px rgba(15, 118, 110, 0.25);
+            flex: 0 0 auto;
+        }
+
+        .brand h1 {
+            font-size: 1.25rem;
+            line-height: 1;
+            margin: 0;
+        }
+
+        .brand span {
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .status-pill {
+            min-height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 0 14px;
+            color: var(--muted);
+            background: #fffaf0;
+            max-width: 48vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(280px, 0.95fr) minmax(280px, 0.9fr) minmax(320px, 1.15fr);
+            gap: 18px;
+            padding: clamp(18px, 4vw, 42px);
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel.recommendations {
+            overflow: visible;
+        }
+
+        .panel-header {
+            padding: 18px 18px 0;
+        }
+
+        .panel-header h2 {
+            margin: 0 0 6px;
+            font-size: 1rem;
+        }
+
+        .panel-header p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+            line-height: 1.45;
+        }
+
+        .panel-body {
+            padding: 18px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 148px;
+            resize: vertical;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 14px;
+            line-height: 1.5;
+            color: var(--ink);
+            background: #fbfcfa;
+            outline: none;
+        }
+
+        textarea:focus,
+        select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        select {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--ink);
+            background: #fbfcfa;
+            padding: 0 12px;
+            outline: none;
+        }
+
+        .counter {
+            min-width: 72px;
+            min-height: 42px;
+            display: grid;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--muted);
+            background: #fbfcfa;
+            font-size: 0.86rem;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .button {
+            min-height: 44px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 700;
+            transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+        }
+
+        .button:hover {
+            transform: translateY(-1px);
+        }
+
+        .button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+            transform: none;
+        }
+
+        .primary {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 10px 22px rgba(15, 118, 110, 0.2);
+        }
+
+        .primary:hover {
+            background: var(--accent-strong);
+        }
+
+        .secondary {
+            background: #ece7dc;
+            color: var(--ink);
+        }
+
+        .danger {
+            background: var(--rose);
+            color: white;
+        }
+
+        .recording {
+            background: var(--gold);
+            color: #1f1703;
+        }
+
+        .transcript {
+            min-height: 54px;
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f4f7f4;
+            color: var(--muted);
+            line-height: 1.45;
+            border: 1px dashed var(--line);
+        }
+
+        .mood-card {
+            display: grid;
+            grid-template-columns: 112px 1fr;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .mood-orb {
+            width: 112px;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, var(--accent), var(--blue));
+        }
+
+        .mood-label {
+            margin: 0;
+            font-size: clamp(1.8rem, 4vw, 3.25rem);
+            line-height: 1;
+            text-transform: capitalize;
+        }
+
+        .confidence {
+            margin-top: 10px;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .signal-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .signal {
+            padding: 7px 9px;
+            background: #f0f7f6;
+            color: #115e59;
+            border: 1px solid #cce6e2;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .meter-stack {
+            display: grid;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .meter {
+            display: grid;
+            gap: 6px;
+        }
+
+        .meter-head {
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 0.84rem;
+            text-transform: capitalize;
+        }
+
+        .track {
+            height: 9px;
+            border-radius: 999px;
+            background: #edf0eb;
+            overflow: hidden;
+        }
+
+        .fill {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent), var(--gold));
+            transition: width 0.28s ease;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .metric {
+            min-height: 74px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            background: #fbfcfa;
+        }
+
+        .metric span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            margin-bottom: 8px;
+        }
+
+        .metric strong {
+            font-size: 1.2rem;
+        }
+
+        /* ---- Featured banner ---- */
+        #bannerSlot {
+            min-height: 0;
+        }
+
+        #bannerSlot:not(:empty) {
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .song-banner {
+            position: relative;
+            overflow: hidden;
+            min-height: 280px;
+            display: flex;
+            align-items: flex-end;
+            border-radius: 0;
+            animation: bannerIn 0.55s cubic-bezier(0.22,1,0.36,1) both;
+            isolation: isolate;
+            background-color: #141414;
+            background-image: none;
+            background-size: cover;
+            background-position: center;
+        }
+
+        @keyframes bannerIn {
+            from { opacity: 0; transform: scale(1.04); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* Album art is now applied as a CSS background-image layer — no img element */
+        .banner-bg { display: none; }
+
+        .banner-bg-grad { display: none; }
+
+        /* Big letter watermark for no-photo case */
+        .banner-initial {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8rem;
+            font-weight: 900;
+            color: rgba(255,255,255,0.12);
+            letter-spacing: -6px;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        /* This div is no longer needed — gradient lives on the banner background-image */
+        .banner-mood-wash { display: none; }
+
+        .banner-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background:
+                linear-gradient(90deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.42) 42%, rgba(0,0,0,0.08) 78%),
+                linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.34) 44%, transparent 86%);
+        }
+
+        /* Shimmer at top — z-index 3 */
+        .banner-shimmer {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            z-index: 4;
+            animation: shimmerSlide 2.8s ease-in-out infinite;
+        }
+
+        @keyframes shimmerSlide {
+            0%   { transform: translateX(-100%); opacity: 0; }
+            20%  { opacity: 1; }
+            80%  { opacity: 1; }
+            100% { transform: translateX(100%); opacity: 0; }
+        }
+
+        /* Text content zone — z-index 3 */
+        .banner-content {
+            position: relative;
+            z-index: 3;
+            padding: 28px 24px 24px;
+            width: 58%;
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+        }
+
+        /* Play button bottom-right — z-index 4 */
+        .banner-play-wrap {
+            position: absolute;
+            bottom: 22px;
+            right: 22px;
+            z-index: 4;
+        }
+
+        .banner-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.7);
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 999px;
+            padding: 3px 10px;
+            margin-bottom: 8px;
+        }
+
+        .banner-title {
+            font-size: 1.7rem;
+            font-weight: 900;
+            color: #ffffff;
+            margin: 0 0 5px;
+            line-height: 1.1;
+            text-shadow: 0 3px 14px rgba(0,0,0,0.5);
+            letter-spacing: -0.02em;
+        }
+
+        .banner-artist {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.78);
+            margin: 0 0 6px;
+        }
+
+        .banner-album-chip {
+            display: inline-block;
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.55);
+            background: rgba(0,0,0,0.28);
+            border-radius: 4px;
+            padding: 2px 7px;
+        }
+
+        .banner-play {
+            flex: 0 0 auto;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #1db954;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            box-shadow: 0 10px 28px rgba(29,185,84,0.55);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            font-size: 1.5rem;
+            padding-left: 4px;
+        }
+
+        .banner-play:hover {
+            transform: scale(1.12);
+            box-shadow: 0 16px 38px rgba(29,185,84,0.7);
+        }
+
+        /* ---- Song grid ---- */
+        .song-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .song {
+            display: grid;
+            grid-template-columns: 72px minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background:
+                linear-gradient(90deg, rgba(15, 118, 110, 0.07), rgba(214, 158, 46, 0.05)),
+                #fbfcfa;
+            min-width: 0;
+            transition: box-shadow 0.18s ease, transform 0.18s ease;
+            animation: songIn 0.35s cubic-bezier(0.22,1,0.36,1) both;
+        }
+
+        @keyframes songIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        .song:hover {
+            box-shadow: 0 8px 24px rgba(15,118,110,0.12);
+            transform: translateY(-2px);
+        }
+
+        .cover {
+            width: 72px;
+            height: 72px;
+            border-radius: 8px;
+            object-fit: cover;
+            box-shadow: 0 6px 16px rgba(28, 31, 36, 0.18);
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.4rem;
+            color: rgba(255,255,255,0.9);
+            letter-spacing: -1px;
+            user-select: none;
+        }
+
+        .song-details {
+            min-width: 0;
+            display: grid;
+            gap: 4px;
+        }
+
+        .song-title {
+            margin: 0;
+            font-weight: 800;
+            font-size: 0.97rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .song-meta {
+            color: var(--muted);
+            font-size: 0.83rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .song-album {
+            color: #475467;
+            font-size: 0.78rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .spotify-link {
+            min-width: 72px;
+            min-height: 36px;
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            color: white;
+            background: #1db954;
+            text-decoration: none;
+            font-weight: 900;
+            font-size: 0.82rem;
+            transition: background 0.16s ease;
+        }
+
+        .spotify-link:hover {
+            background: #17a349;
+        }
+
+        .empty {
+            min-height: 220px;
+            display: grid;
+            align-content: center;
+            justify-items: center;
+            gap: 12px;
+            text-align: center;
+            color: var(--muted);
+            border: 1px dashed var(--line);
+            border-radius: 8px;
+            padding: 20px;
+            background: #fbfcfa;
+        }
+
+        @media (max-width: 1080px) {
+            .workspace {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .recommendations {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .status-pill {
+                max-width: 100%;
+                width: 100%;
+            }
+
+            .workspace {
+                grid-template-columns: 1fr;
+            }
+
+            .mood-card,
+            .song {
+                grid-template-columns: 1fr;
+            }
+
+            .cover {
+                width: 100%;
+                max-height: 220px;
+            }
+
+            .mood-orb {
+                width: 100%;
+                height: 86px;
+            }
+
+            .spotify-link {
+                width: 100%;
+            }
         }
     </style>
 </head>
 
 <body>
+    <div class="shell">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark" aria-hidden="true"></div>
+                <div>
+                    <h1>Moodify</h1>
+                    <span>Adaptive music recommendations</span>
+                </div>
+            </div>
+            <div class="status-pill" id="status">Checking voice input support...</div>
+        </header>
 
-    <h1>Moodify — Let Your Mood Choose Music 🎵</h1>
+        <main class="workspace">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Mood Input</h2>
+                    <p>Type how you feel or record a short voice note.</p>
+                </div>
+                <div class="panel-body">
+                    <textarea id="textInput" maxlength="500" placeholder="I feel focused but a little tired..."></textarea>
+                    <div class="field-row">
+                        <select id="languageSelect" aria-label="Music language">
+                            <option value="english">English</option>
+                            <option value="hindi">Hindi</option>
+                            <option value="telugu" selected>Telugu</option>
+                        </select>
+                        <div class="counter" id="counter">0/500</div>
+                    </div>
+                    <div class="actions">
+                        <button class="button primary" id="analyzeTextButton">Analyze</button>
+                        <button class="button secondary" id="clearButton">Clear</button>
+                    </div>
+                    <div class="actions">
+                        <button class="button danger" id="recordButton" disabled>Record</button>
+                        <button class="button secondary" id="sampleButton">Sample</button>
+                    </div>
+                    <div class="transcript" id="transcriptPreview">Voice transcript will appear here.</div>
+                </div>
+            </section>
 
-    <input type="text" id="textInput" placeholder="Type your mood...">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Analysis</h2>
+                    <p>Confidence, mood scores, and browser voice signals update after each run.</p>
+                </div>
+                <div class="panel-body">
+                    <div class="mood-card">
+                        <div class="mood-orb" id="moodOrb">--</div>
+                        <div>
+                            <p class="mood-label" id="moodResult">Ready</p>
+                            <div class="confidence" id="confidence">Confidence will appear here.</div>
+                        </div>
+                    </div>
+                    <div class="signal-list" id="signals"></div>
+                    <div class="meter-stack" id="scoreMeters"></div>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <span>Sentiment</span>
+                            <strong id="sentimentMetric">0.000</strong>
+                        </div>
+                        <div class="metric">
+                            <span>Vocal Tempo</span>
+                            <strong id="tempoMetric">0</strong>
+                        </div>
+                        <div class="metric">
+                            <span>Pitch</span>
+                            <strong id="pitchMetric">0 Hz</strong>
+                        </div>
+                        <div class="metric">
+                            <span>Tracks</span>
+                            <strong id="trackMetric">0</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-    <br>
-    <select id="languageSelect">
-        <option value="english">English</option>
-        <option value="hindi">Hindi</option>
-        <option value="telugu">Telugu</option>
-    </select>
-
-    <br>
-    <button id="analyzeTextButton">Analyze Mood</button>
-    <button id="clearButton">Clear</button>
-
-    <br><br>
-    <button id="recordButton" disabled>🎙 Start Recording</button>
-    <p id="status">Loading voice model... ⏳</p>
-
-    <h2 id="moodResult"></h2>
-    <div id="songList"></div>
+            <section class="panel recommendations">
+                <div class="panel-header">
+                    <h2>Recommendations</h2>
+                    <p>Open any match directly in Spotify.</p>
+                </div>
+                <div id="bannerSlot"></div>
+                <div class="panel-body">
+                    <div class="song-grid" id="songList">
+                        <div class="empty">Your recommendations will appear after mood analysis.</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
 
     <script>
         let mediaRecorder;
+        let recognition;
         let chunks = [];
+        let finalTranscript = "";
+        let interimTranscript = "";
         let isRecording = false;
-        let whisperModel = null;
-        let modelLoaded = false;
 
-        // -------------------------------------
-        // Load Whisper Tiny Model (Fastest)
-        // -------------------------------------
-        async function loadWhisper() {
-            document.getElementById("status").innerText = "Loading voice model... ⏳";
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recordButton = document.getElementById("recordButton");
+        const statusEl = document.getElementById("status");
+        const transcriptPreview = document.getElementById("transcriptPreview");
+        const textInput = document.getElementById("textInput");
+        const counter = document.getElementById("counter");
 
-            try {
-                whisperModel = await transformers.pipeline(
-                    "automatic-speech-recognition",
-                    "Xenova/whisper-tiny"
-                );
+        const languageCodes = {
+            english: "en-US",
+            hindi: "hi-IN",
+            telugu: "te-IN"
+        };
 
-                modelLoaded = true;
-                document.getElementById("status").innerText = "Voice model ready 🎤";
-                document.getElementById("recordButton").disabled = false;
+        initVoiceInput();
+        renderMeters({ happy: 0, sad: 0, neutral: 0, love: 0, angry: 0 });
 
-            } catch (error) {
-                console.error("Model load error:", error);
-                document.getElementById("status").innerHTML =
-                    `Failed to load model ❌ 
-                    <button onclick='loadWhisper()'>Retry</button>`;
-            }
-        }
+        textInput.addEventListener("input", () => {
+            counter.innerText = `${textInput.value.length}/500`;
+        });
 
-        // Timeout fallback if loading is slow
-        setTimeout(() => {
-            if (!modelLoaded) {
-                document.getElementById("status").innerHTML =
-                    `Still loading... ⚠️ 
-                    <button onclick='loadWhisper()'>Retry</button>`;
-            }
-        }, 15000);
+        function initVoiceInput() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
 
-        loadWhisper();
-
-
-        // -------------------------------------
-        // Recording Controls
-        // -------------------------------------
-        document.getElementById("recordButton").onclick = function () {
-            if (!modelLoaded) {
-                alert("Voice model still loading. Please wait.");
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                statusEl.innerText = "Voice input is not supported in this browser.";
                 return;
             }
+
+            if (!window.MediaRecorder) {
+                statusEl.innerText = "Audio recording is not supported in this browser.";
+                return;
+            }
+
+            if (!AudioContext) {
+                statusEl.innerText = "Audio analysis is not supported in this browser.";
+                return;
+            }
+
+            if (!SpeechRecognition) {
+                statusEl.innerText = "Speech recognition is not supported here. Try Chrome or Edge.";
+                return;
+            }
+
+            recordButton.disabled = false;
+            statusEl.innerText = "Ready.";
+        }
+
+        function createSpeechRecognizer() {
+            const recognizer = new SpeechRecognition();
+            recognizer.continuous = true;
+            recognizer.interimResults = true;
+            recognizer.lang = languageCodes[document.getElementById("languageSelect").value] || "en-US";
+
+            recognizer.onresult = (event) => {
+                interimTranscript = "";
+
+                for (let i = event.resultIndex; i < event.results.length; i += 1) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + " ";
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                const preview = (finalTranscript + interimTranscript).trim();
+                transcriptPreview.innerText = preview ? `Heard: ${preview}` : "Listening...";
+            };
+
+            recognizer.onerror = (event) => {
+                statusEl.innerText = `Speech recognition error: ${event.error}`;
+            };
+
+            recognizer.onend = () => {
+                if (isRecording) {
+                    try {
+                        recognizer.start();
+                    } catch (err) {
+                        console.error("Could not restart speech recognition:", err);
+                    }
+                }
+            };
+
+            return recognizer;
+        }
+
+        recordButton.onclick = function () {
             if (!isRecording) startRecording();
             else stopRecording();
         };
 
         async function startRecording() {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
 
-            chunks = [];
-            mediaRecorder.start();
-            isRecording = true;
+                mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+                recognition = createSpeechRecognizer();
+                chunks = [];
+                finalTranscript = "";
+                interimTranscript = "";
+                transcriptPreview.innerText = "Listening...";
 
-            document.getElementById("recordButton").classList.add("recording");
-            document.getElementById("recordButton").innerText = "⏹ Stop Recording";
-            document.getElementById("status").innerText = "Recording... 🎙";
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                };
+                mediaRecorder.onstop = () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    setTimeout(processAudio, 300);
+                };
 
-            mediaRecorder.ondataavailable = e => chunks.push(e.data);
-            mediaRecorder.onstop = () => processAudio();
+                isRecording = true;
+                recognition.start();
+                mediaRecorder.start();
+
+                recordButton.classList.add("recording");
+                recordButton.innerText = "Stop";
+                statusEl.innerText = "Recording...";
+            } catch (err) {
+                console.error("Could not start recording:", err);
+                isRecording = false;
+                statusEl.innerText = "Could not access your microphone.";
+            }
         }
 
         function stopRecording() {
-            mediaRecorder.stop();
             isRecording = false;
 
-            document.getElementById("recordButton").classList.remove("recording");
-            document.getElementById("recordButton").innerText = "🎙 Start Recording";
-            document.getElementById("status").innerText = "Processing audio...";
+            if (recognition) recognition.stop();
+            if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+
+            recordButton.classList.remove("recording");
+            recordButton.innerText = "Record";
+            statusEl.innerText = "Processing audio...";
         }
 
-
-        // -------------------------------------
-        // Process Audio
-        // -------------------------------------
         async function processAudio() {
-            const blob = new Blob(chunks, { type: "audio/webm" });
-            const arrayBuffer = await blob.arrayBuffer();
+            const blob = new Blob(chunks, { type: mediaRecorder?.mimeType || "audio/webm" });
+            const text = (finalTranscript + interimTranscript).trim();
+
+            if (!chunks.length) {
+                statusEl.innerText = "No audio was recorded.";
+                return;
+            }
+
+            if (!text) {
+                statusEl.innerText = "I could not hear any words. Please try again.";
+                return;
+            }
 
             try {
-                const textResult = await whisperModel(arrayBuffer);
-                const text = textResult.text || "";
-
-                document.getElementById("status").innerText = "Sending to server...";
-
-                // Send for mood detection + tempo + pitch
-                $.ajax({
-                    url: "/voice",
-                    method: "POST",
-                    contentType: "application/json",
-                    data: JSON.stringify({
-                        audio: await blobToBase64(blob),
-                        text: text,
-                        language: document.getElementById("languageSelect").value
-                    }),
-                    success: showResults,
-                    error: () => alert("Error processing voice input.")
+                statusEl.innerText = "Analyzing voice...";
+                const features = await extractVoiceFeatures(blob);
+                const response = await postJson("/voice", {
+                    text: text,
+                    features: features,
+                    language: document.getElementById("languageSelect").value
                 });
-
+                showResults(response);
             } catch (err) {
-                console.error(err);
-                alert("Whisper transcription failed.");
+                statusEl.innerText = formatRequestError(err, "Voice processing failed.");
             }
         }
 
-        function blobToBase64(blob) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result.split(",")[1]);
-                reader.readAsDataURL(blob);
-            });
+        async function extractVoiceFeatures(blob) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const audioContext = new AudioContext();
+
+            try {
+                const buffer = await audioContext.decodeAudioData(await blob.arrayBuffer());
+                const channel = buffer.getChannelData(0);
+                return {
+                    tempo: estimateTempo(channel, buffer.sampleRate),
+                    pitch: estimatePitch(channel, buffer.sampleRate),
+                    energy: estimateEnergy(channel)
+                };
+            } finally {
+                await audioContext.close();
+            }
         }
 
+        function estimateEnergy(samples) {
+            if (!samples.length) return 0;
 
-        // -------------------------------------
-        // Text Input Mood
-        // -------------------------------------
-        document.getElementById("analyzeTextButton").onclick = function () {
-            let text = document.getElementById("textInput").value.trim();
-            let language = document.getElementById("languageSelect").value;
+            let sum = 0;
+            for (let i = 0; i < samples.length; i += 1) {
+                sum += samples[i] * samples[i];
+            }
 
-            if (!text) return alert("Enter text first.");
+            return clamp(Math.sqrt(sum / samples.length) * 6, 0, 1);
+        }
 
-            $.ajax({
-                url: "/text",
+        function estimateTempo(samples, sampleRate) {
+            const windowSize = Math.max(1, Math.floor(sampleRate * 0.05));
+            const envelope = [];
+
+            for (let i = 0; i < samples.length; i += windowSize) {
+                let sum = 0;
+                const end = Math.min(i + windowSize, samples.length);
+                for (let j = i; j < end; j += 1) {
+                    sum += Math.abs(samples[j]);
+                }
+                envelope.push(sum / Math.max(end - i, 1));
+            }
+
+            if (envelope.length < 3) return 0;
+
+            const average = envelope.reduce((sum, value) => sum + value, 0) / envelope.length;
+            const threshold = average * 1.35;
+            let peaks = 0;
+            let lastPeak = -Infinity;
+            const minGap = 4;
+
+            for (let i = 1; i < envelope.length - 1; i += 1) {
+                const isPeak = envelope[i] > threshold && envelope[i] > envelope[i - 1] && envelope[i] >= envelope[i + 1];
+                if (isPeak && i - lastPeak >= minGap) {
+                    peaks += 1;
+                    lastPeak = i;
+                }
+            }
+
+            const duration = samples.length / sampleRate;
+            if (!duration || !peaks) return 0;
+
+            return Math.round(clamp((peaks / duration) * 60, 40, 200));
+        }
+
+        function estimatePitch(samples, sampleRate) {
+            const step = Math.max(1, Math.floor(samples.length / 12000));
+            let crossings = 0;
+            let previous = samples[0] || 0;
+            let voicedSamples = 0;
+
+            for (let i = step; i < samples.length; i += step) {
+                const current = samples[i];
+                if (Math.abs(current) > 0.02) {
+                    voicedSamples += step;
+                    if ((previous < 0 && current >= 0) || (previous >= 0 && current < 0)) {
+                        crossings += 1;
+                    }
+                }
+                previous = current;
+            }
+
+            const duration = voicedSamples / sampleRate;
+            if (!duration || !crossings) return 0;
+
+            return Math.round(clamp((crossings / 2) / duration, 50, 500));
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(Math.max(value, min), max);
+        }
+
+        async function postJson(url, payload) {
+            const response = await fetch(url, {
                 method: "POST",
-                contentType: "application/json",
-                data: JSON.stringify({ text, language }),
-                success: showResults
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
             });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok || data.error) {
+                const error = new Error(data.error || `Request failed with status ${response.status}`);
+                error.details = data.details;
+                throw error;
+            }
+
+            return data;
+        }
+
+        function formatRequestError(error, fallback) {
+            if (!error.message) return fallback;
+            return error.details ? `${error.message}. Details: ${error.details}` : error.message;
+        }
+
+        document.getElementById("analyzeTextButton").onclick = async function () {
+            const text = textInput.value.trim();
+            const language = document.getElementById("languageSelect").value;
+
+            if (!text) {
+                statusEl.innerText = "Enter text first.";
+                return;
+            }
+
+            try {
+                statusEl.innerText = "Analyzing text...";
+                const response = await postJson("/text", { text, language });
+                showResults(response);
+            } catch (err) {
+                statusEl.innerText = formatRequestError(err, "Error processing text input.");
+            }
         };
 
+        document.getElementById("sampleButton").onclick = function () {
+            textInput.value = "I feel excited and confident, but I need music that keeps me focused.";
+            counter.innerText = `${textInput.value.length}/500`;
+        };
 
-        // -------------------------------------
-        // Display Results
-        // -------------------------------------
         function showResults(response) {
-            if (response.error) {
-                document.getElementById("moodResult").innerText = "Error: " + response.error;
+            const analysis = response.analysis || {};
+            const mood = analysis.mood || response.mood || "neutral";
+            _currentMood = mood;   // store for gradient use
+
+            statusEl.innerText = response.text ? `Transcribed: ${response.text}` : "Analysis complete.";
+            document.getElementById("moodResult").innerText = mood;
+            document.getElementById("moodOrb").innerText = mood.slice(0, 2);
+            document.getElementById("confidence").innerText = `Confidence ${Math.round((analysis.confidence || 0) * 100)}%`;
+            document.getElementById("sentimentMetric").innerText = Number(analysis.sentiment?.compound || 0).toFixed(3);
+            document.getElementById("tempoMetric").innerText = `${analysis.audio?.tempo || 0}`;
+            document.getElementById("pitchMetric").innerText = `${analysis.audio?.pitch || 0} Hz`;
+            document.getElementById("trackMetric").innerText = response.songs?.length || 0;
+
+            renderSignals(analysis.signals || []);
+            renderMeters(analysis.scores || {});
+            renderSongs(response.songs || [], response.recommendation || {});
+        }
+
+        function renderSignals(signals) {
+            const container = document.getElementById("signals");
+            container.replaceChildren();
+
+            if (!signals.length) {
+                const empty = document.createElement("span");
+                empty.className = "signal";
+                empty.innerText = "waiting for signals";
+                container.appendChild(empty);
                 return;
             }
 
-            document.getElementById("moodResult").innerHTML =
-                `Detected Mood: <b>${response.mood.toUpperCase()}</b>`;
-
-            let list = document.getElementById("songList");
-            list.innerHTML = "";
-
-            if (!response.songs?.length) {
-                list.innerHTML = "<p>No songs found.</p>";
-                return;
-            }
-
-            response.songs.forEach(song => {
-                list.innerHTML += `
-                    <div class="song">
-                        <img src="${song.cover}">
-                        <div>
-                            <b>${song.name}</b><br>
-                            ${song.artist}<br>
-                            <a href="${song.spotify_url}" target="_blank">Open in Spotify</a>
-                        </div>
-                    </div>
-                `;
+            signals.forEach(signal => {
+                const item = document.createElement("span");
+                item.className = "signal";
+                item.innerText = signal;
+                container.appendChild(item);
             });
         }
 
+        function renderMeters(scores) {
+            const container = document.getElementById("scoreMeters");
+            container.replaceChildren();
 
-        // -------------------------------------
-        // Clear Button
-        // -------------------------------------
+            ["happy", "sad", "neutral", "love", "angry"].forEach(mood => {
+                const score = Number(scores[mood] || 0);
+                const meter = document.createElement("div");
+                meter.className = "meter";
+                meter.innerHTML = `
+                    <div class="meter-head">
+                        <span>${mood}</span>
+                        <span>${Math.round(score * 100)}%</span>
+                    </div>
+                    <div class="track"><div class="fill" style="width: ${Math.round(score * 100)}%"></div></div>
+                `;
+                container.appendChild(meter);
+            });
+        }
+
+        // Per-mood gradient palettes for the banner & cover art
+        const MOOD_GRADIENTS = {
+            happy:   ["135deg", "#f59e0b", "#ef4444"],
+            sad:     ["135deg", "#3b82f6", "#6366f1"],
+            neutral: ["135deg", "#0f766e", "#2563eb"],
+            love:    ["135deg", "#ec4899", "#f43f5e"],
+            angry:   ["135deg", "#dc2626", "#7c3aed"]
+        };
+
+        let _currentMood = "neutral";
+
+        function moodGradient(mood) {
+            const g = MOOD_GRADIENTS[mood] || MOOD_GRADIENTS.neutral;
+            return `linear-gradient(${g[0]}, ${g[1]}, ${g[2]})`;
+        }
+
+        function coverGradient(mood, index) {
+            const palettes = {
+                happy:   [["#f59e0b","#fbbf24"],["#ef4444","#f97316"],["#10b981","#34d399"]],
+                sad:     [["#3b82f6","#60a5fa"],["#6366f1","#818cf8"],["#0ea5e9","#38bdf8"]],
+                neutral: [["#0f766e","#14b8a6"],["#2563eb","#60a5fa"],["#7c3aed","#a78bfa"]],
+                love:    [["#ec4899","#f9a8d4"],["#f43f5e","#fb7185"],["#e11d48","#f472b6"]],
+                angry:   [["#dc2626","#f87171"],["#7c3aed","#c084fc"],["#b45309","#fbbf24"]]
+            };
+            const set = palettes[mood] || palettes.neutral;
+            const [c1, c2] = set[index % set.length];
+            return `linear-gradient(135deg, ${c1}, ${c2})`;
+        }
+
+        function songInitial(name) {
+            return (name || "?").trim().charAt(0).toUpperCase();
+        }
+
+        const MOOD_SOLID = {
+            happy:   "#d97706",
+            sad:     "#2563eb",
+            neutral: "#0f766e",
+            love:    "#db2777",
+            angry:   "#dc2626"
+        };
+
+        const MOOD_SHIMMER_COLOR = {
+            happy:   "rgba(251,191,36,0.95)",
+            sad:     "rgba(147,197,253,0.95)",
+            neutral: "rgba(94,234,212,0.95)",
+            love:    "rgba(249,168,212,0.95)",
+            angry:   "rgba(252,165,165,0.95)"
+        };
+
+        function renderFeaturedBanner(song, mood) {
+            const slot = document.getElementById("bannerSlot");
+            slot.replaceChildren();
+
+            const banner = document.createElement("div");
+            banner.className = "song-banner";
+            banner.id = "featuredBanner";
+
+            const solid = MOOD_SOLID[mood] || MOOD_SOLID.neutral;
+            const shimColor = MOOD_SHIMMER_COLOR[mood] || "rgba(255,255,255,0.9)";
+
+            // Build a CSS multi-layer background:
+            // Layer 1 (top): the mood gradient
+            // Layer 2 (bottom): the album art photo
+            const coverUrl = song.cover ? `url("${song.cover.replace(/"/g, "%22")}")` : "";
+
+            if (song.cover) {
+                // Both layers: gradient on top, photo underneath
+                banner.style.backgroundImage = coverUrl;
+                banner.style.backgroundColor = solid;
+            } else {
+                // No photo — just solid color gradient
+                banner.style.background = coverGradient(mood, 0);
+            }
+
+            // Add large initial letter for no-photo case only
+            if (!song.cover) {
+                const initial = document.createElement("div");
+                initial.className = "banner-initial";
+                initial.textContent = songInitial(song.name);
+                banner.appendChild(initial);
+            }
+
+            // 3 — Subtle dark vignette at very bottom for text legibility
+            const overlay = document.createElement("div");
+            overlay.className = "banner-overlay";
+            banner.appendChild(overlay);
+
+            // 4 — Animated shimmer line at top
+            const shimmer = document.createElement("div");
+            shimmer.className = "banner-shimmer";
+            shimmer.style.background = `linear-gradient(90deg, transparent, ${shimColor}, transparent)`;
+            banner.appendChild(shimmer);
+
+            // 5 — Text content (left zone)
+            const content = document.createElement("div");
+            content.className = "banner-content";
+
+            const text = document.createElement("div");
+
+            const label = document.createElement("div");
+            label.className = "banner-label";
+            label.innerHTML = "🎵 Featured Pick";
+
+            const title = document.createElement("h3");
+            title.className = "banner-title";
+            title.textContent = song.name || "Unknown track";
+
+            const artist = document.createElement("p");
+            artist.className = "banner-artist";
+            artist.textContent = song.artist || "Unknown artist";
+
+            const albumChip = document.createElement("span");
+            albumChip.className = "banner-album-chip";
+            albumChip.textContent = song.album ? `💿 ${song.album}` : "";
+
+            text.append(label, title, artist);
+            if (song.album) text.appendChild(albumChip);
+            content.append(text);
+            banner.appendChild(content);
+
+            // 6 — Play button bottom-right, always over the photo
+            const playWrap = document.createElement("div");
+            playWrap.className = "banner-play-wrap";
+            const playBtn = document.createElement("a");
+            playBtn.className = "banner-play";
+            playBtn.href = song.spotify_url || "https://open.spotify.com";
+            playBtn.target = "_blank";
+            playBtn.rel = "noopener noreferrer";
+            playBtn.setAttribute("aria-label", `Play ${song.name} on Spotify`);
+            playBtn.innerHTML = "&#9654;";
+            playWrap.appendChild(playBtn);
+            banner.appendChild(playWrap);
+
+            slot.appendChild(banner);
+        }
+
+        function renderSongs(songs, recommendation = {}) {
+            // Clear the banner slot
+            const slot = document.getElementById("bannerSlot");
+            if (slot) slot.replaceChildren();
+
+            const list = document.getElementById("songList");
+            list.replaceChildren();
+
+            if (!songs.length) {
+                const empty = document.createElement("div");
+                empty.className = "empty";
+                const message = document.createElement("div");
+                message.innerText = recommendation.error
+                    ? `No songs loaded from playlist ${recommendation.playlist_id || ""}. ${recommendation.error}`
+                    : `No songs found in playlist ${recommendation.playlist_id || ""}.`;
+                empty.append(message);
+                list.appendChild(empty);
+                return;
+            }
+
+            // Render featured banner for the first song
+            renderFeaturedBanner(songs[0], _currentMood);
+
+            songs.forEach((song, idx) => {
+                const card = document.createElement("article");
+                card.className = "song";
+                card.style.animationDelay = `${idx * 0.07}s`;
+
+                // Cover: real image or styled gradient div with initial
+                let cover;
+                if (song.cover) {
+                    cover = document.createElement("img");
+                    cover.className = "cover";
+                    cover.src = song.cover;
+                    cover.alt = "";
+                } else {
+                    cover = document.createElement("div");
+                    cover.className = "cover";
+                    cover.style.background = coverGradient(_currentMood, idx);
+                    cover.textContent = songInitial(song.name);
+                }
+
+                const details = document.createElement("div");
+                details.className = "song-details";
+                const title = document.createElement("p");
+                title.className = "song-title";
+                title.innerText = song.name || "Unknown track";
+                const meta = document.createElement("div");
+                meta.className = "song-meta";
+                meta.innerText = `Singer: ${song.artist || "Unknown artist"}`;
+                const album = document.createElement("div");
+                album.className = "song-album";
+                album.innerText = song.album ? `Album: ${song.album}` : "Album details unavailable";
+                details.append(title, meta, album);
+
+                const link = document.createElement("a");
+                link.className = "spotify-link";
+                link.href = song.spotify_url || "https://open.spotify.com";
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+                link.innerText = "Play";
+                link.ariaLabel = `Open ${song.name || "track"} in Spotify`;
+
+                card.append(cover, details, link);
+                list.appendChild(card);
+            });
+        }
+
         document.getElementById("clearButton").onclick = function () {
-            document.getElementById("textInput").value = "";
-            document.getElementById("moodResult").innerHTML = "";
-            document.getElementById("songList").innerHTML = "";
-            document.getElementById("status").innerHTML = "";
+            textInput.value = "";
+            counter.innerText = "0/500";
+            transcriptPreview.innerText = "Voice transcript will appear here.";
+            document.getElementById("moodResult").innerText = "Ready";
+            document.getElementById("moodOrb").innerText = "--";
+            document.getElementById("confidence").innerText = "Confidence will appear here.";
+            document.getElementById("sentimentMetric").innerText = "0.000";
+            document.getElementById("tempoMetric").innerText = "0";
+            document.getElementById("pitchMetric").innerText = "0 Hz";
+            document.getElementById("trackMetric").innerText = "0";
+            renderSignals([]);
+            renderMeters({ happy: 0, sad: 0, neutral: 0, love: 0, angry: 0 });
+            renderSongs([]);
+            statusEl.innerText = SpeechRecognition ? "Ready." : "Speech recognition is not supported here. Try Chrome or Edge.";
         };
     </script>
-
 </body>
 
 </html>

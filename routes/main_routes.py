@@ -1,14 +1,10 @@
-import os
-import base64
-import tempfile
-import subprocess
 from flask import Blueprint, request, jsonify, render_template
 
-from utils.mood_analysis import analyze_mood_with_audio
-from utils.audio_features import extract_audio_features
-from utils.spotify_recommender import get_recommendations
+from utils.mood_analysis import analyze_mood_details
+from utils.spotify_recommender import get_recommendation_result, get_spotify_access_token, fetch_playlist_tracks, MOOD_PLAYLISTS
 
 main_bp = Blueprint("main_bp", __name__)
+MAX_TEXT_LENGTH = 500
 
 @main_bp.route("/")
 def home():
@@ -21,16 +17,27 @@ def home():
 @main_bp.route("/text", methods=["POST"])
 def analyze_text():
     data = request.get_json(silent=True) or {}
-    text = data.get("text", "")
-    language = data.get("language", "english")
+    text = data.get("text", "").strip()
+    language = data.get("language", "telugu")
 
     if not text:
         return jsonify({"error": "No text provided"}), 400
+    if len(text) > MAX_TEXT_LENGTH:
+        return jsonify({"error": f"Text must be {MAX_TEXT_LENGTH} characters or fewer"}), 400
 
-    mood = analyze_mood_with_audio(text)
-    songs = get_recommendations(mood, language)
+    analysis = analyze_mood_details(text)
+    recommendation = get_recommendation_result(
+        analysis["mood"],
+        language,
+        limit=3
+    )
 
-    return jsonify({"mood": mood, "songs": songs})
+    return jsonify({
+        "analysis": analysis,
+        "mood": analysis["mood"],
+        "recommendation": recommendation,
+        "songs": recommendation["songs"]
+    })
 
 
 # --------------------------
@@ -40,74 +47,70 @@ def analyze_text():
 def analyze_voice():
     data = request.get_json(silent=True) or {}
 
-    # Text already transcribed in browser using Whisper Tiny
+    # Text and lightweight voice features are produced in the browser.
     text = data.get("text", "").strip()
-    audio_b64 = data.get("audio", "")
-    language = data.get("language", "english")
-
-    if not audio_b64:
-        return jsonify({"error": "No audio provided"}), 400
-
-    temp_webm = None
-    temp_wav = None
+    language = data.get("language", "telugu")
+    features = data.get("features") or {}
 
     try:
-        # ------------------------
-        # Save received audio
-        # ------------------------
-        audio_bytes = base64.b64decode(audio_b64)
+        tempo = float(features.get("tempo", 0) or 0)
+        pitch = float(features.get("pitch", 0) or 0)
+        energy = float(features.get("energy", 0) or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid audio features"}), 400
 
-        temp_webm = tempfile.NamedTemporaryFile(delete=False, suffix=".webm")
-        temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    if not text:
+        return jsonify({"error": "No transcript provided"}), 400
+    if len(text) > MAX_TEXT_LENGTH:
+        return jsonify({"error": f"Transcript must be {MAX_TEXT_LENGTH} characters or fewer"}), 400
 
-        temp_webm.close()
-        temp_wav.close()
-
-        with open(temp_webm.name, "wb") as f:
-            f.write(audio_bytes)
-
-        # ------------------------
-        # Convert to WAV using ffmpeg
-        # ------------------------
-        proc = subprocess.run([
-            "ffmpeg", "-y",
-            "-i", temp_webm.name,
-            "-ac", "1",
-            "-ar", "16000",
-            temp_wav.name
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-
-        if proc.returncode != 0:
-            err = proc.stderr.decode(errors="ignore")
-            return jsonify({"error": "FFmpeg conversion failed", "details": err}), 500
-
-        # ------------------------
-        # Extract tempo + pitch
-        # ------------------------
-        tempo, pitch = extract_audio_features(temp_wav.name)
-
-        # ------------------------
-        # Detect mood
-        # ------------------------
-        mood = analyze_mood_with_audio(text, tempo, pitch)
-        songs = get_recommendations(mood, language)
+    try:
+        analysis = analyze_mood_details(text, tempo, pitch)
+        analysis["audio"]["browser_energy"] = round(max(0, min(energy, 1)), 2)
+        recommendation = get_recommendation_result(
+            analysis["mood"],
+            language,
+            limit=3
+        )
 
         return jsonify({
             "text": text,
-            "mood": mood,
+            "mood": analysis["mood"],
+            "analysis": analysis,
             "tempo": tempo,
             "pitch": pitch,
-            "songs": songs
+            "recommendation": recommendation,
+            "songs": recommendation["songs"]
         })
 
     except Exception as e:
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
-    finally:
-        # Cleanup
-        for tf in (temp_webm, temp_wav):
-            try:
-                if tf and os.path.exists(tf.name):
-                    os.remove(tf.name)
-            except:
-                pass
+
+# --------------------------
+#   DEBUG ROUTE
+# --------------------------
+@main_bp.route("/debug/spotify")
+def debug_spotify():
+    """Quick health-check: test token + fetch a few tracks from one playlist."""
+    try:
+        token = get_spotify_access_token()
+        if not token:
+            return jsonify({"ok": False, "error": "No Spotify token — credentials missing or invalid"}), 500
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Token error: {e}"}), 500
+
+    results = {}
+    # Test one playlist per mood for the default language (telugu)
+    for mood, langs in MOOD_PLAYLISTS.items():
+        pid = langs.get("telugu") or langs.get("english")
+        songs, error = fetch_playlist_tracks(pid, mood, "telugu")
+        results[mood] = {
+            "playlist_id": pid,
+            "tracks_fetched": len(songs),
+            "error": error,
+            "sample": songs[:2] if songs else []
+        }
+
+    return jsonify({"ok": True, "token_ok": True, "playlists": results})
+

@@ -1,17 +1,20 @@
 from flask import Blueprint, request, redirect, session, url_for
 import requests
 import time
+from urllib.parse import urlencode
 from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPES
 
 auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/login")
 def login():
-    auth_url = (
-        f"https://accounts.spotify.com/authorize?client_id={SPOTIFY_CLIENT_ID}"
-        f"&response_type=code&redirect_uri={SPOTIFY_REDIRECT_URI}"
-        f"&scope={SPOTIFY_SCOPES}"
-    )
+    auth_url = "https://accounts.spotify.com/authorize?" + urlencode({
+        "client_id": SPOTIFY_CLIENT_ID,
+        "response_type": "code",
+        "redirect_uri": SPOTIFY_REDIRECT_URI,
+        "scope": SPOTIFY_SCOPES,
+        "show_dialog": "true"
+    })
     return redirect(auth_url)
 
 @auth_bp.route("/callback")
@@ -28,7 +31,10 @@ def callback():
         "client_secret": SPOTIFY_CLIENT_SECRET
     }
 
-    response = requests.post("https://accounts.spotify.com/api/token", data=token_data)
+    response = requests.post("https://accounts.spotify.com/api/token", data=token_data, timeout=12)
+    if response.status_code != 200:
+        return f"Spotify token error: {response.text}", 400
+
     token_info = response.json()
 
     session["access_token"] = token_info.get("access_token")
