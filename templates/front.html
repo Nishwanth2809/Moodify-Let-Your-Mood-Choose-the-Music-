@@ -91,6 +91,91 @@
             font-size: 0.88rem;
         }
 
+        
+        .ai-pill {
+            background: #f0fdf4 !important;
+            color: #166534 !important;
+            border-color: #bbf7d0 !important;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .ai-pill.gemini {
+            background: #eff6ff !important;
+            color: #1d4ed8 !important;
+            border-color: #bfdbfe !important;
+        }
+
+        .ai-insight-box {
+            margin-top: 16px;
+            background: linear-gradient(135deg, rgba(240, 253, 250, 0.95), rgba(254, 249, 195, 0.25));
+            border: 1px solid #99f6e4;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 15px rgba(15, 118, 110, 0.06);
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .ai-insight-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .ai-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #0f766e;
+            color: #fff;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+
+        .ai-nuance {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #134e4a;
+        }
+
+        .ai-empathy {
+            font-size: 0.92rem;
+            line-height: 1.5;
+            color: #1f2937;
+            margin: 0 0 10px 0;
+            font-style: italic;
+        }
+
+        .ai-vibe {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            font-size: 0.83rem;
+            color: #374151;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(15, 118, 110, 0.15);
+        }
+
+        .ai-vibe-label {
+            font-weight: 700;
+            color: #0f766e;
+            white-space: nowrap;
+        }
         .status-pill {
             min-height: 36px;
             display: inline-flex;
@@ -700,7 +785,10 @@
                     <span>Adaptive music recommendations</span>
                 </div>
             </div>
-            <div class="status-pill" id="status">Checking voice input support...</div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <div class="status-pill ai-pill" id="aiStatusPill" title="Emotion Engine Status"><span class="ai-sparkle">✨</span> <span id="aiEngineLabel">AI Engine Active</span></div>
+                <div class="status-pill" id="status">Checking voice input support...</div>
+            </div>
         </header>
 
         <main class="workspace">
@@ -742,6 +830,17 @@
                         <div>
                             <p class="mood-label" id="moodResult">Ready</p>
                             <div class="confidence" id="confidence">Confidence will appear here.</div>
+                        </div>
+                    </div>
+                    <div class="ai-insight-box" id="aiInsightBox" style="display: none;">
+                        <div class="ai-insight-header">
+                            <span class="ai-badge" id="aiBadge">✨ AI Emotion Insight</span>
+                            <span class="ai-nuance" id="aiNuance"></span>
+                        </div>
+                        <p class="ai-empathy" id="aiEmpathy"></p>
+                        <div class="ai-vibe">
+                            <span class="ai-vibe-label">Music Vibe:</span>
+                            <span id="aiVibeText"></span>
                         </div>
                     </div>
                     <div class="signal-list" id="signals"></div>
@@ -804,6 +903,19 @@
         };
 
         initVoiceInput();
+        fetch("/api/ai-status")
+            .then(res => res.json())
+            .then(data => {
+                const pill = document.getElementById("aiStatusPill");
+                const label = document.getElementById("aiEngineLabel");
+                if (label && pill) {
+                    label.innerText = data.engine || "AI Engine Active";
+                    if (data.gemini_configured) {
+                        pill.classList.add("gemini");
+                    }
+                }
+            })
+            .catch(() => {});
         renderMeters({ happy: 0, sad: 0, neutral: 0, love: 0, angry: 0 });
 
         textInput.addEventListener("input", () => {
@@ -1103,6 +1215,18 @@
             document.getElementById("pitchMetric").innerText = `${analysis.audio?.pitch || 0} Hz`;
             document.getElementById("trackMetric").innerText = response.songs?.length || 0;
 
+            const ai = analysis.ai_insight;
+            const aiBox = document.getElementById("aiInsightBox");
+            if (ai && aiBox) {
+                aiBox.style.display = "block";
+                document.getElementById("aiBadge").innerText = ai.is_ai_powered ? "✨ Gemini AI" : "✨ AI Insight";
+                document.getElementById("aiNuance").innerText = ai.nuanced_emotion || "";
+                document.getElementById("aiEmpathy").innerText = ai.empathy_note ? `"${ai.empathy_note}"` : "";
+                document.getElementById("aiVibeText").innerText = ai.music_vibe || "";
+            } else if (aiBox) {
+                aiBox.style.display = "none";
+            }
+
             renderSignals(analysis.signals || []);
             renderMeters(analysis.scores || {});
             renderSongs(response.songs || [], response.recommendation || {});
@@ -1362,6 +1486,8 @@
             document.getElementById("tempoMetric").innerText = "0";
             document.getElementById("pitchMetric").innerText = "0 Hz";
             document.getElementById("trackMetric").innerText = "0";
+            const aiBox = document.getElementById("aiInsightBox");
+            if (aiBox) aiBox.style.display = "none";
             renderSignals([]);
             renderMeters({ happy: 0, sad: 0, neutral: 0, love: 0, angry: 0 });
             renderSongs([]);

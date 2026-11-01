@@ -1,5 +1,6 @@
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
+from utils.ai_engine import query_gemini_emotion, generate_heuristic_insight
 
 _sia = None
 _models_loaded = False
@@ -53,13 +54,29 @@ def get_sia():
     return _sia
 
 
-def analyze_mood_with_audio(text, tempo=0, avg_pitch=0):
-    return analyze_mood_details(text, tempo, avg_pitch)["mood"]
+def analyze_mood_with_audio(text, tempo=0, avg_pitch=0, language="telugu"):
+    return analyze_mood_details(text, tempo, avg_pitch, language=language)["mood"]
 
 
-def analyze_mood_details(text, tempo=0, avg_pitch=0):
+def analyze_mood_details(text, tempo=0, avg_pitch=0, language="telugu"):
     text = (text or "").strip()
 
+    tempo = float(tempo or 0)
+    avg_pitch = float(avg_pitch or 0)
+    norm_tempo = min(max((tempo - 40) / 160, 0), 1)
+    norm_pitch = min(max((avg_pitch - 50) / 450, 0), 1)
+
+    # 1. Try Gemini AI Emotion Engine first if configured
+    gemini_result = None
+    if text:
+        audio_features = {
+            "tempo": tempo,
+            "pitch": avg_pitch,
+            "energy": norm_tempo
+        } if tempo or avg_pitch else None
+        gemini_result = query_gemini_emotion(text, language=language, audio_features=audio_features)
+
+    # Standard VADER sentiment scoring for baseline/sentiment gauges
     try:
         sia = get_sia()
         sentiment = sia.polarity_scores(text) if sia and text else {
@@ -73,11 +90,6 @@ def analyze_mood_details(text, tempo=0, avg_pitch=0):
         sentiment = {"compound": 0, "pos": 0, "neu": 1, "neg": 0}
         compound = 0
 
-    tempo = float(tempo or 0)
-    avg_pitch = float(avg_pitch or 0)
-    norm_tempo = min(max((tempo - 40) / 160, 0), 1)
-    norm_pitch = min(max((avg_pitch - 50) / 450, 0), 1)
-
     lower = text.lower()
     matched = {
         mood: sorted(keyword for keyword in keywords if keyword in lower)
@@ -85,34 +97,58 @@ def analyze_mood_details(text, tempo=0, avg_pitch=0):
     }
     matched = {mood: words for mood, words in matched.items() if words}
 
-    scores = {
-        "happy": 0.30 + max(compound, 0) * 0.55 + norm_tempo * 0.25 + norm_pitch * 0.10,
-        "sad": 0.25 + max(-compound, 0) * 0.65 + (1 - norm_tempo) * 0.25 + (1 - norm_pitch) * 0.10,
-        "neutral": 0.55 - abs(compound) * 0.35 - abs(norm_tempo - 0.45) * 0.10,
-        "love": 0.20 + max(compound, 0) * 0.35 + norm_pitch * 0.10,
-        "angry": 0.15 + max(-compound, 0) * 0.25 + norm_tempo * 0.35 + norm_pitch * 0.35,
-    }
+    if gemini_result:
+        mood = gemini_result.get("primary_mood", "neutral").lower()
+        if mood not in MOODS:
+            mood = "neutral"
+        confidence = float(gemini_result.get("confidence", 0.88))
+        raw_scores = gemini_result.get("scores", {})
+        scores = {m: round(float(raw_scores.get(m, 0.2)), 2) for m in MOODS}
+        scores[mood] = max(scores.get(mood, 0.8), 0.75)
 
-    for mood, words in matched.items():
-        scores[mood] += min(0.55, 0.25 + len(words) * 0.10)
+        ai_insight = {
+            "provider": gemini_result.get("provider", "Gemini 2.5 Flash"),
+            "is_ai_powered": True,
+            "nuanced_emotion": gemini_result.get("nuanced_emotion", "Emotionally Expressive"),
+            "empathy_note": gemini_result.get("empathy_note", "Music tuned to your personal emotional space."),
+            "music_vibe": gemini_result.get("music_vibe", "Harmonious soundscape tailored to your state of mind."),
+            "suggested_query": gemini_result.get("suggested_query", f"{mood} songs")
+        }
+    else:
+        # Heuristic NLP calculation
+        scores = {
+            "happy": 0.30 + max(compound, 0) * 0.55 + norm_tempo * 0.25 + norm_pitch * 0.10,
+            "sad": 0.25 + max(-compound, 0) * 0.65 + (1 - norm_tempo) * 0.25 + (1 - norm_pitch) * 0.10,
+            "neutral": 0.55 - abs(compound) * 0.35 - abs(norm_tempo - 0.45) * 0.10,
+            "love": 0.20 + max(compound, 0) * 0.35 + norm_pitch * 0.10,
+            "angry": 0.15 + max(-compound, 0) * 0.25 + norm_tempo * 0.35 + norm_pitch * 0.35,
+        }
 
-    if avg_pitch > 250 and tempo > 120:
-        scores["angry"] += 0.25
+        for m_name, words in matched.items():
+            scores[m_name] += min(0.55, 0.25 + len(words) * 0.10)
 
-    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-    mood = ranked[0][0]
-    top_score = ranked[0][1]
-    second_score = ranked[1][1]
-    confidence = min(max(0.45 + (top_score - second_score) * 0.55, 0.45), 0.96)
+        if avg_pitch > 250 and tempo > 120:
+            scores["angry"] += 0.25
+
+        ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        mood = ranked[0][0]
+        top_score = ranked[0][1]
+        second_score = ranked[1][1]
+        confidence = min(max(0.45 + (top_score - second_score) * 0.55, 0.45), 0.96)
+
+        ai_insight = generate_heuristic_insight(text, mood, compound, matched)
+        ai_insight["is_ai_powered"] = False
 
     signals = []
+    if gemini_result:
+        signals.append("Gemini AI Emotion Analysis")
     for matched_mood, words in matched.items():
         signals.append(f"{matched_mood} keywords: {', '.join(words[:3])}")
 
     if compound >= 0.35:
-        signals.append("positive language")
+        signals.append("positive sentiment")
     elif compound <= -0.35:
-        signals.append("negative language")
+        signals.append("negative sentiment")
     else:
         signals.append("balanced sentiment")
 
@@ -137,5 +173,6 @@ def analyze_mood_details(text, tempo=0, avg_pitch=0):
             "energy": round(norm_tempo, 2),
             "intensity": round(norm_pitch, 2)
         },
-        "signals": signals[:5]
+        "signals": signals[:5],
+        "ai_insight": ai_insight
     }

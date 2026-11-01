@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, render_template
 
 from utils.mood_analysis import analyze_mood_details
 from utils.spotify_recommender import get_recommendation_result, get_spotify_access_token, fetch_playlist_tracks, MOOD_PLAYLISTS
+from utils.ai_engine import get_gemini_api_key
 
 main_bp = Blueprint("main_bp", __name__)
 MAX_TEXT_LENGTH = 500
@@ -9,6 +10,18 @@ MAX_TEXT_LENGTH = 500
 @main_bp.route("/")
 def home():
     return render_template("front.html")
+
+
+# --------------------------
+#   AI STATUS ROUTE
+# --------------------------
+@main_bp.route("/api/ai-status")
+def ai_status():
+    has_key = bool(get_gemini_api_key())
+    return jsonify({
+        "gemini_configured": has_key,
+        "engine": "Google Gemini 2.5 Flash" if has_key else "Smart Sentiment & Heuristic Engine"
+    })
 
 
 # --------------------------
@@ -25,7 +38,7 @@ def analyze_text():
     if len(text) > MAX_TEXT_LENGTH:
         return jsonify({"error": f"Text must be {MAX_TEXT_LENGTH} characters or fewer"}), 400
 
-    analysis = analyze_mood_details(text)
+    analysis = analyze_mood_details(text, language=language)
     recommendation = get_recommendation_result(
         analysis["mood"],
         language,
@@ -65,7 +78,7 @@ def analyze_voice():
         return jsonify({"error": f"Transcript must be {MAX_TEXT_LENGTH} characters or fewer"}), 400
 
     try:
-        analysis = analyze_mood_details(text, tempo, pitch)
+        analysis = analyze_mood_details(text, tempo, pitch, language=language)
         analysis["audio"]["browser_energy"] = round(max(0, min(energy, 1)), 2)
         recommendation = get_recommendation_result(
             analysis["mood"],
@@ -113,4 +126,3 @@ def debug_spotify():
         }
 
     return jsonify({"ok": True, "token_ok": True, "playlists": results})
-

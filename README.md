@@ -1,14 +1,14 @@
-﻿# Moodify
+# Moodify
 
-Moodify is a Flask app that detects a user's mood from typed text or a short voice note, then recommends Spotify tracks for English, Hindi, or Telugu listening.
+Moodify is an intelligent music curation app that detects a user's mood from typed text or a short voice note, provides empathetic emotional insights, and recommends Spotify tracks for English, Hindi, or Telugu listening.
 
 ## Highlights
 
-- Text mood detection with VADER sentiment analysis and keyword signals
-- Voice mood detection with browser transcription plus lightweight Web Audio analysis
-- Confidence score, mood score breakdown, sentiment metrics, and audio metrics
-- Spotify playlist recommendations with search fallbacks when credentials are unavailable
-- Responsive app-style UI for desktop and mobile
+- **AI-Powered Emotion Engine**: Integrates Google Gemini (`gemini-2.5-flash` / `gemini-1.5-flash`) for deep, nuanced emotional reflection, empathetic feedback notes, and tailored musical vibe descriptions with seamless heuristic fallback.
+- **Text & Voice Mood Detection**: Browser transcription with Web Audio analysis (tempo, pitch, energy) combined with NLTK VADER sentiment analysis and emotion keyword signals.
+- **Emotional Breakdown & Metrics**: Confidence scores, multi-mood distribution meters (happy, sad, neutral, love, angry), sentiment metrics, and vocal audio features.
+- **Adaptive Spotify Recommendations**: Spotify playlist recommendations with search fallbacks when credentials are unavailable.
+- **Responsive Modern UI**: Sleek, accessible app-style interface for desktop and mobile.
 
 ## Run Locally
 
@@ -19,15 +19,17 @@ python app.py
 
 Open `http://localhost:5050`.
 
-## Environment
+## Environment Configuration
 
-Create a `.env` file for Spotify-powered recommendations:
+Create a `.env` file in the root directory:
 
 ```bash
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
-SPOTIFY_REDIRECT_URI=http://localhost:5050/callback
-FLASK_SECRET=replace_me
+FLASK_SECRET=your_flask_secret
+
+# Optional: Google Gemini API Key for deep AI emotion analysis & empathy reflections
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-Voice analysis runs in the browser with the Web Audio API, so no FFmpeg install is required.
+*Note: If `GEMINI_API_KEY` is omitted, Moodify automatically operates with its smart sentiment and linguistic emotion engine without interruption.*
