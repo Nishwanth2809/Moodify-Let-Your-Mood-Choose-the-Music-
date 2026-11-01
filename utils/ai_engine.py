@@ -1,13 +1,13 @@
 import os
 import json
-import requests
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
-GEMINI_API_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-1.5-flash",
+GEMINI_MODELS = [
+    "gemini-3.5-flash-lite",
+    "gemini-3.8-flash",
+    "gemini-flash-latest",
 ]
 
 EMOTION_VIBES = {
@@ -40,6 +40,7 @@ EMOTION_VIBES = {
 
 
 def get_gemini_api_key():
+    load_dotenv(override=True)
     return os.getenv("GEMINI_API_KEY", "").strip()
 
 
@@ -53,7 +54,7 @@ def query_gemini_emotion(text: str, language: str = "english", audio_features: d
         tempo = audio_features.get("tempo", 0)
         pitch = audio_features.get("pitch", 0)
         energy = audio_features.get("energy", 0)
-        audio_context = f"Detected vocal audio features: Tempo ~ {tempo:.1f} BPM, Average Pitch ~ {pitch:.1f} Hz, Vocal Energy ~ {energy:.2f}."
+        audio_context = f"Detected vocal audio features: Tempo ~ {tempo:.1f} BPM, Pitch ~ {pitch:.1f} Hz, Vocal Energy ~ {energy:.2f}."
 
     prompt = f"""You are Moodify's empathetic AI Emotion & Music Intelligence Engine.
 Analyze the following user statement and determine their emotional state and tailored musical vibe.
@@ -62,7 +63,7 @@ User text / speech transcript: "{text}"
 Preferred music language: {language}
 {audio_context}
 
-Return a STRICT JSON response (no markdown fences, just pure JSON) with the following exact keys:
+Return a STRICT JSON object (no markdown, no code fences, only valid JSON) with these exact keys:
 {{
   "primary_mood": "happy" | "sad" | "neutral" | "love" | "angry",
   "nuanced_emotion": "1-3 words describing exact emotional nuance (e.g. 'Bittersweet Nostalgia', 'Determined & Fierce', 'Euphoric Joy')",
@@ -80,39 +81,35 @@ Return a STRICT JSON response (no markdown fences, just pure JSON) with the foll
 }}
 """
 
-    for model in GEMINI_API_MODELS:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "temperature": 0.4,
-                "responseMimeType": "application/json"
-            }
-        }
-        try:
-            response = requests.post(url, json=payload, timeout=7)
-            if response.status_code == 200:
-                data = response.json()
-                candidates = data.get("candidates", [])
-                if candidates:
-                    parts = candidates[0].get("content", {}).get("parts", [])
-                    if parts:
-                        raw_text = parts[0].get("text", "").strip()
-                        # Clean markdown json fences if any
-                        if raw_text.startswith("```json"):
-                            raw_text = raw_text[7:]
-                        if raw_text.startswith("```"):
-                            raw_text = raw_text[3:]
-                        if raw_text.endswith("```"):
-                            raw_text = raw_text[:-3]
-                        parsed = json.loads(raw_text.strip())
-                        if "primary_mood" in parsed:
-                            parsed["provider"] = f"gemini ({model})"
-                            return parsed
-            else:
-                print(f"[Moodify AI] Gemini model {model} returned status {response.status_code}: {response.text[:120]}")
-        except Exception as e:
-            print(f"[Moodify AI] Gemini request error with {model}: {e}")
+    try:
+        from google import genai
+        client = genai.Client(api_key=api_key)
+
+        for model in GEMINI_MODELS:
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config={"response_mime_type": "application/json"}
+                )
+                raw_text = (response.text or "").strip()
+                if raw_text.startswith("```json"):
+                    raw_text = raw_text[7:]
+                if raw_text.startswith("```"):
+                    raw_text = raw_text[3:]
+                if raw_text.endswith("```"):
+                    raw_text = raw_text[:-3]
+
+                parsed = json.loads(raw_text.strip())
+                if "primary_mood" in parsed:
+                    parsed["provider"] = f"Google Gemini ({model})"
+                    return parsed
+            except Exception as model_err:
+                print(f"[Moodify AI] Gemini model {model} attempt error: {model_err}")
+                continue
+
+    except Exception as e:
+        print(f"[Moodify AI] Gemini client error: {e}")
 
     return None
 
