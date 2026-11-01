@@ -815,6 +815,14 @@
                         <button class="button danger" id="recordButton" disabled>Record</button>
                         <button class="button secondary" id="sampleButton">Sample</button>
                     </div>
+                    <div style="margin-top: 10px;">
+                        <select id="speechLangSelect" aria-label="Spoken voice language" style="width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 0.85rem; color: var(--ink);" title="Select the language you speak into the microphone">
+                            <option value="en-US" selected>🎙️ Spoken: English (US / Global)</option>
+                            <option value="en-IN">🎙️ Spoken: English (India)</option>
+                            <option value="te-IN">🎙️ Spoken: Telugu (తెలుగు)</option>
+                            <option value="hi-IN">🎙️ Spoken: Hindi (हिंदी)</option>
+                        </select>
+                    </div>
                     <div class="transcript" id="transcriptPreview">Voice transcript will appear here.</div>
                 </div>
             </section>
@@ -953,7 +961,8 @@
             const recognizer = new SpeechRecognition();
             recognizer.continuous = true;
             recognizer.interimResults = true;
-            recognizer.lang = languageCodes[document.getElementById("languageSelect").value] || "en-US";
+            const chosenLang = document.getElementById("speechLangSelect")?.value;
+            recognizer.lang = chosenLang || languageCodes[document.getElementById("languageSelect").value] || "en-US";
 
             recognizer.onresult = (event) => {
                 interimTranscript = "";
@@ -968,11 +977,26 @@
                 }
 
                 const preview = (finalTranscript + interimTranscript).trim();
-                transcriptPreview.innerText = preview ? `Heard: ${preview}` : "Listening...";
+                transcriptPreview.innerText = preview ? `Heard: "${preview}"` : "Listening...";
+                if (preview) {
+                    textInput.value = preview;
+                    counter.innerText = `${textInput.value.length}/500`;
+                }
             };
 
             recognizer.onerror = (event) => {
-                statusEl.innerText = `Speech recognition error: ${event.error}`;
+                console.warn("Speech recognition error:", event.error);
+                if (event.error === "no-speech") {
+                    // Do not alarm the user on temporary silence pauses
+                    return;
+                }
+                if (event.error === "not-allowed") {
+                    statusEl.innerText = "Microphone blocked. Please allow mic permission in your browser.";
+                } else if (event.error === "network") {
+                    statusEl.innerText = "Speech recognition network issue. Try Chrome/Edge or type your text.";
+                } else {
+                    statusEl.innerText = `Speech recognition note: ${event.error}`;
+                }
             };
 
             recognizer.onend = () => {
@@ -1040,20 +1064,24 @@
 
         async function processAudio() {
             const blob = new Blob(chunks, { type: mediaRecorder?.mimeType || "audio/webm" });
-            const text = (finalTranscript + interimTranscript).trim();
+            const heardText = (finalTranscript + interimTranscript).trim();
+            const text = heardText || textInput.value.trim();
 
-            if (!chunks.length) {
-                statusEl.innerText = "No audio was recorded.";
+            if (!chunks.length && !text) {
+                statusEl.innerText = "No audio was recorded. You can also type how you feel above.";
                 return;
             }
 
             if (!text) {
-                statusEl.innerText = "I could not hear any words. Please try again.";
+                statusEl.innerText = "Could not hear clear words. Speak closer to the mic, or type your mood in the box above!";
                 return;
             }
 
+            textInput.value = text;
+            counter.innerText = `${text.length}/500`;
+
             try {
-                statusEl.innerText = "Analyzing voice...";
+                statusEl.innerText = "Analyzing voice & mood...";
                 const features = await extractVoiceFeatures(blob);
                 const response = await postJson("/voice", {
                     text: text,
